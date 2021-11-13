@@ -23,12 +23,12 @@ The user will have the following options:
 
 <br>
 
-## T<span style="color:blue"> entative "Final" Product </span>
-The result of our project will be an interpreter for Epsilon which allows the user to break the interpreter at selected points in the program, at which point they will be able to view the current state and stack trace, step forward in the program’s execution either one step at a time or run until the next breakpoint**. To do this, we will need to use the brick library, as well as some parser library --- we’re uncertain whether Parsec or the combination of Alex and Happy would be better right now. Ideally, Delta will also support breaking whenever a chosen variable changes.
+## <span style="color:blue"> Tentative "Final" Product </span>
+The result of our project will be an interpreter for Epsilon which allows the user to break the interpreter at selected points in the program, at which point they will be able to view the current state and stack trace, step forward in the program’s execution either one step at a time or run until the next breakpoint. To do this, we will need to use the brick library, as well as some parser library --- we’re uncertain whether Parsec or the combination of Alex and Happy would be better right now.
 
 <br>
 
-## <span style="color:blue"> Epsilon and Beyond </span>
+## <span style="color:blue"> Possible Extensions </span>
 * Triggers on a variable's value change.
 * This may be further extended to be a time-travelling debugger, essentially somehow go “X” number of steps back into the execution of the program.
 * Extending the language to add more features derived from other modern languages.
