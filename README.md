@@ -1,5 +1,5 @@
 # Epsilon and Delta
-- Course project for **CSE230 - Principles of Programming Languages**
+### Course project for **CSE230 - Principles of Programming Languages**
 
 <br>
 
