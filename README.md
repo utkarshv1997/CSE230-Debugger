@@ -34,7 +34,7 @@ The result of our project will be an interpreter for Epsilon which allows the us
 * Extending the language to add more features derived from other modern languages.
 
 ## Team
-> Daniel Kleber
-> Abhishek C. Sharma
-> Hema Thota
+> Daniel Kleber,
+> Abhishek C. Sharma,
+> Hema Thota,
 > Utkarsh Vashishtha
