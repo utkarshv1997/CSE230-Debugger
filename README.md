@@ -1,4 +1,4 @@
-# <span style="color:blue"> Epsilon and Delta </span>
+# Epsilon and Delta
 ### Course project for **CSE230 - Principles of Programming Languages**
 
 <br>
