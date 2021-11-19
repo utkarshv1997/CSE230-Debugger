@@ -14,8 +14,14 @@ import Brick.Main
 import Brick.Types
 import Graphics.Vty (defAttr)
 import Graphics.Vty.Input
-import WEditor.LineWrap             -- For the line-wrapping policy.
 import WEditorBrick.WrappingEditor  -- For the wrapping editor Brick widget.
+import WEditor.LineWrap
+import WEditor.Document
+import Brick
+import Brick.Widgets.Core (strWrap)
+import Graphics.Vty.Attributes
+import qualified Graphics.Vty as V
+import Data.Set hiding (map)
 
 
 -- Delegate most events to a single handler. If you get annoyed by scrolling
@@ -24,38 +30,62 @@ handleEventsWith :: (t -> Event -> EventM n1 t) -> t -> BrickEvent n2 e -> Event
 handleEventsWith _ x (VtyEvent (EvKey KEsc [])) = halt x
 handleEventsWith handler x (VtyEvent e) = continue =<< handler x e
 
--- An app containing nothing but a single editor widget.
-app :: App (WrappingEditor Char [Char]) e [Char]
-app = App {
-  -- renderEditor renders the current editor in a viewport with the same name as
-  -- the editor. True means that the editor has focus.
-  appDraw = \edit -> [renderEditor True edit],
-  appChooseCursor = const listToMaybe,
-  -- handleEditor handles editor events such as cursor movements and typing.
-  appHandleEvent = handleEventsWith handleEditor,
-  appStartEvent = return,
-  appAttrMap = const (attrMap defAttr [])
+data ProgState = ProgState {
+    codeLines :: [(String, Int)], -- (line of code, line number)
+    breakpoints :: Set Int -- contains "breakpointed" line numbers
 }
 
--- Loads the filename, runs the editor, and returns the final data.
--- NOTE: This *doesn't* modify the contents of the file.
-fakeEditFile :: FilePath -> IO String
-fakeEditFile f = do
-  contents <- fmap lines $ readFile f
-  -- newEditor creates an editor object. breakWords is semi-aware of words, and
-  -- lazyHyphen performs hyphenation.
-  let editor = newEditor (breakWords lazyHyphen) "editor" contents
-  -- dumpEditor extracts the editor's contents.
-  modified <- defaultMain app editor >>= return . dumpEditor
-  return (unlines modified)
+generalScheme, breakpointScheme :: AttrName
+generalScheme = attrName "general-scheme"
+breakpointScheme = attrName "breakpoint-scheme"
 
-main :: IO b
+-- The Application interface
+app :: App ProgState e Int
+app = App {
+  appStartEvent = return, -- We would probably create the primary (without any breakpoints) AST here
+  appDraw = assembleWidgets,
+  appHandleEvent = handleEvent,
+  appChooseCursor = neverShowCursor,
+  appAttrMap = const (attrMap defAttr [
+                  (generalScheme, white `on` blue),
+                  (breakpointScheme, white `on` red)
+               ])
+}
+
+handleEvent :: ProgState -> BrickEvent Int e -> EventM Int (Next ProgState)
+handleEvent ps (VtyEvent (V.EvKey V.KUp []))     = error "fill me"
+handleEvent ps (VtyEvent (V.EvKey V.KDown []))   = error "fill me"
+handleEvent ps (VtyEvent (V.EvKey V.KLeft []))   = error "fill me"
+handleEvent ps (VtyEvent (V.EvKey V.KRight []))  = error "fill me"
+handleEvent ps (VtyEvent (V.EvKey V.KEsc []))    = halt ps
+handleEvent ps _                                 = continue ps
+
+assembleWidgets :: ProgState -> [Widget n]
+assembleWidgets ps = map (\ (codeline, line) -> 
+                                        if member line (breakpoints ps) then 
+                                          withAttr breakpointScheme $ strWrap codeline
+                                        else 
+                                          withAttr generalScheme $ strWrap codeline
+                         ) 
+                     (codeLines ps)
+
+initState :: [String] -> Int -> [(String, Int)]
+initState [] _ = [] 
+initState (l : ls) c = (l, c) : initState ls (c + 1)
+
+readFileContents :: FilePath -> IO String
+readFileContents f = do
+  contents <- lines <$> readFile f
+  return (unlines contents)
+
+main :: IO ()
 main = do
   args <- getArgs
   case args of
       [fileName] -> do
-        result <- fakeEditFile fileName
-        putStr result
+        codeLines <- lines <$> readFile fileName
+        finalState <- defaultMain app (ProgState {codeLines = initState codeLines 1, breakpoints = empty})
+        -- Pass on the final state to the function that handles the AST insertion of breakpoints
         exitSuccess
       _ -> do
         putStr "Please provide a filename to be opened."
