@@ -45,20 +45,18 @@ app = App {
   appStartEvent = return, -- We would probably create the primary (without any breakpoints) AST here
   appDraw = assembleWidgets,
   appHandleEvent = handleEvent,
-  appChooseCursor = neverShowCursor,
+  appChooseCursor = showFirstCursor,
   appAttrMap = const (attrMap defAttr [
                   (generalScheme, white `on` blue),
                   (breakpointScheme, white `on` red)
                ])
 }
 
+-- Figure out how to get the line number of the cursor
 handleEvent :: ProgState -> BrickEvent Int e -> EventM Int (Next ProgState)
-handleEvent ps (VtyEvent (V.EvKey V.KUp []))     = error "fill me"
-handleEvent ps (VtyEvent (V.EvKey V.KDown []))   = error "fill me"
-handleEvent ps (VtyEvent (V.EvKey V.KLeft []))   = error "fill me"
-handleEvent ps (VtyEvent (V.EvKey V.KRight []))  = error "fill me"
-handleEvent ps (VtyEvent (V.EvKey V.KEsc []))    = halt ps
-handleEvent ps _                                 = continue ps
+handleEvent ps (VtyEvent (V.EvKey V.KDown [])) = error "fill me"
+handleEvent ps (VtyEvent (V.EvKey V.KUp [])) = error "fill me"
+handleEvent ps _ = continue ps
 
 assembleWidgets :: ProgState -> [Widget n]
 assembleWidgets ps = map (\ (codeline, line) -> 
@@ -80,6 +78,12 @@ readFileContents f = do
 
 main :: IO ()
 main = do
+do
+  let buildVty = do
+        v <- V.mkVty =<< V.standardIOConfig
+        V.setMode (V.outputIface v) V.Mouse True
+        return v
+  initialVty <- buildVty
   args <- getArgs
   case args of
       [fileName] -> do
