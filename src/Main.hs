@@ -78,7 +78,6 @@ readFileContents f = do
 
 main :: IO ()
 main = do
-do
   let buildVty = do
         v <- V.mkVty =<< V.standardIOConfig
         V.setMode (V.outputIface v) V.Mouse True
