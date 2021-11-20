@@ -1,0 +1,8 @@
+resolver: lts-18.13
+compiler: ghc-8.10.7
+allow-newer: true
+packages:
+        - .
+extra-deps:
+        - WEditor-0.2.1.1
+        - WEditorBrick-0.2.0.1
