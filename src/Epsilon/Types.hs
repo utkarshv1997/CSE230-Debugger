@@ -13,7 +13,7 @@ data Value
   | StringVal String
   | ListVal [Value]
   | MapVal (Map String Value)
-  | Closure [String] Statement
+  | Closure [String] Statement -- TODO: Closure may need a field to capture their lexical environment
   deriving (Eq, Show)
 
 -------------------------------------------------
