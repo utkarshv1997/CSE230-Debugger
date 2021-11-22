@@ -1,5 +1,6 @@
 dist
 dist-*
+!src/dist
 cabal-dev
 *.o
 *.hi

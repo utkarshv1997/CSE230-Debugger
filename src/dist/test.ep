@@ -1,0 +1,58 @@
+#include <stdio.h>  
+#include <string.h>  
+
+// Iterative C++ program to reverse an array
+#include <bits/stdc++.h>
+using namespace std;
+ 
+/* Function to reverse arr[] from start to end*/
+void reverseArray(int arr[], int start, int end)
+{
+    while (start < end)
+    {
+        int temp = arr[start];
+        arr[start] = arr[end];
+        arr[end] = temp;
+        start++;
+        end--;
+    }
+}    
+ 
+/* Utility function to print an array */
+void printArray(int arr[], int size)
+{
+   for (int i = 0; i < size; i++)
+   cout << arr[i] << " ";
+ 
+   cout << endl;
+}
+
+// function definition of the revstr()  
+void revstr(char *str1)  
+{  
+    // declare variable  
+    int i, len, temp;  
+    len = strlen(str1); // use strlen() to get the length of str string  
+      
+    // use for loop to iterate the string   
+    for (i = 0; i < len/2; i++)  
+    {  
+        // temp variable use to temporary hold the string  
+        temp = str1[i];  
+        str1[i] = str1[len - i - 1];  
+        str1[len - i - 1] = temp;  
+    }  
+}  
+      
+int main()  
+{  
+    char str[50]; // size of char string  
+    printf (" Enter the string: ");  
+    gets(str); // use gets() function to take string  
+        
+    printf (" \n Before reversing the string: %s \n", str);  
+        
+    // call revstr() function   
+    revstr(str);  
+    printf (" After reversing the string: %s", str);  
+}  
