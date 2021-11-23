@@ -2,6 +2,7 @@ module Epsilon.ParserTest where
 
 import Epsilon.Types
 import Epsilon.Parser
+import Epsilon.Evaluator
 
 import Test.Tasty
 import Test.Tasty.HUnit

@@ -6,6 +6,15 @@ import Data.Map
 --             PRIMITIVE VALUES
 -------------------------------------------------
 
+data Type
+  = TInt
+  | TBool
+  | TChar
+  | TString
+  | TList
+  | TMap
+  | TClosure
+
 data Value
   = IntVal Int
   | BoolVal Bool
@@ -67,6 +76,7 @@ data Expression
 data Statement
   = Expr Expression
   | Nop
+  | Assign Variable Expression 
   | Sequence [Statement]
   | IfElse Expression Statement Statement
   | While Expression Statement

@@ -25,7 +25,8 @@ executable debugger
 Library
   ghc-options:        -W
   exposed-modules:    Epsilon.Types,
-                      Epsilon.Parser
+                      Epsilon.Parser,
+                      Epsilon.Evaluator
 
   Default-Extensions: OverloadedStrings
 
