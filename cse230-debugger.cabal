@@ -17,5 +17,20 @@ executable debugger
                      , containers
                      , lens
                      , vty
+                     , parsec
+                     , mtl
                      , microlens
                      , microlens-th
+
+Test-Suite test-epsilon-delta
+  type:                exitcode-stdio-1.0
+  main-is:             test.hs
+  hs-source-dirs:      test
+
+  build-depends:       base,
+                       parsec,
+                       tasty,
+                       tasty-hunit,
+                       tasty-quickcheck,
+                       cse230-debugger
+  other-modules:       Epsilon.ParserTest
