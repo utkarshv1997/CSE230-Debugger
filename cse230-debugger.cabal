@@ -34,7 +34,8 @@ Library
   build-depends:       base,
                        parsec,
                        containers,
-                       mtl
+                       mtl,
+                       monad-coroutine
 
   hs-source-dirs:      src
   default-language:    Haskell2010
