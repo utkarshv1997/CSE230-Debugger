@@ -65,6 +65,21 @@ writeStack x v (f:fs) = case M.lookup x (variables f) of
   Nothing -> do
     fs' <- writeStack x v fs
     return (f:fs')
+
+{-
+writeStack :: (MonadEpsilon m) => Variable -> Value -> EState -> m EState
+writeStack x _ [] = throwError $ ReferenceError x
+writeStack x v state@(MkEState [ptr:ptrs] mem) = case M.lookup x (variables (getFrame ptr state)) of
+  Just _ -> return (MkEState [ptr:ptrs] mem')
+    where
+      let f = (getFrame ptr state) in
+        vars = M.insert x v (variables f)
+        f' = f{variables = vars}
+        mem' = M.insert ptr f' mem
+  Nothing -> do
+    fs' <- writeStack (MkEState [ptrs] mem)
+    return (MkEState [ptr:ptrs] mem)
+-}
   
 defineVar :: (MonadEpsilon m) => Variable -> Value -> m ()
 defineVar x v = do
