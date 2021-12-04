@@ -6,11 +6,15 @@ data Frame = MkFrame
   {
     name :: Variable
   , variables :: Map Variable Value
+  , environment :: FramePtr
   }
   deriving (Eq, Show)
 
+type FramePtr = Int
+
 data EState = MkEState
-  { stack :: [Frame]
+  { stack :: [FramePtr]
+  , memory :: Map FramePtr Frame
   }
   deriving (Eq, Show)
 
@@ -28,13 +32,14 @@ data Type
   | TClosure
 
 data Value
-  = IntVal Int
+  = VoidVal
+  | IntVal Int
   | BoolVal Bool
   | CharVal Char
   | StringVal String
   | ListVal [Value]
   | MapVal (Map String Value)
-  | Closure EState [Variable] Statement -- TODO: Closure may need a field to capture their lexical environment
+  | Closure FramePtr [Variable] Statement -- TODO: Closure may need a field to capture their lexical environment
   deriving (Eq, Show)
 
 -------------------------------------------------
