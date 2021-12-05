@@ -105,3 +105,261 @@ mapEntry = do
   kvSep
   value <- valueP
   return (key, value)
+
+--Closure EState [Variable] Statement 
+
+-------------------------------------------------
+--             VARIABLES
+-------------------------------------------------
+
+-- The following is a parser for variables, which are one-or-more letters. 
+varP :: Parser T.Variable
+varP = many1 letter --upper
+
+-------------------------------------------------
+--             UNARY OPERATORS
+-------------------------------------------------
+unOpP :: Parser T.UnOp
+unOpP = constP "!" T.Not
+
+-------------------------------------------------
+--             BINARY OPERATORS
+-------------------------------------------------
+
+binOpP :: Parser T.BinOp
+binOpP = try(constP "+" T.Add)                  
+       <|> try(constP "-" T.Sub)
+       <|> try(constP "*" T.Mul)                        
+       <|> try(constP "/" T.Div)                           
+       <|> try(constP ">" T.Gt)                            
+       <|> try(constP ">=" T.Gte)
+       <|> try(constP "<" T.Lt)
+       <|> try(constP "<=" T.Lte)
+       <|> try(constP "||" T.Or)
+       <|> try(constP "&&" T.And)
+       <|> try(constP "." T.Idx)
+
+
+-------------------------------------------------
+--             EXPRESSIONS
+-------------------------------------------------
+
+-- data Expression
+--   = Var Variable
+--   | Val Value
+--   | BinOpExpr BinOp Expression Expression
+--   | UnOpExpr UnOp Expression
+--   | Lambda [Variable] Statement 
+--   | Call Expression [Expression]
+--   deriving (Eq, Show)
+
+
+varExp :: Parser T.Expression
+varExp = do 
+          var <- varP
+          return (T.Var var)
+
+valExp :: Parser T.Expression
+valExp = do
+          val <- valueP
+          return (T.Val val)
+
+
+-- TODO: BODMAS ordering instead of right associative evaluation
+opExp :: Parser T.Expression
+opExp = do
+          x <-  try(opbExp) <|> try(valExp) <|> try(varExp)
+          spaces
+          op <- binOpP
+          spaces
+          y <-  exprP
+          return (T.BinOpExpr op x y)
+
+opbExp :: Parser T.Expression
+opbExp = do
+          string "("
+          exp <- opExp
+          string ")"
+          return (exp)
+
+unOpExp :: Parser T.Expression
+unOpExp = do 
+            op <- unOpP
+            spaces
+            v <- exprP
+            return (T.UnOpExpr op v)
+
+parItems :: Parser [T.Variable]
+parItems = varP `sepBy` itemSep     --itemSep parses comma
+
+lambdaExp :: Parser T.Expression
+lambdaExp = do 
+              string "fn"
+              spaces 
+              pars <- (between (char '(') (char ')') parItems)
+              string "{"
+              spaces
+              body <- statementP
+              spaces
+              string "}"
+              spaces
+              return (T.Lambda pars body)
+
+argItems :: Parser [T.Expression]
+argItems = exprP `sepBy` itemSep
+
+callExp :: Parser T.Expression
+callExp = do 
+            exp <- exprP                    --can be a variable to which lamba exp is assigned or directly a lambda expression
+            args <- (between (char '(') (char ')') argItems)
+            return (T.Call exp args)
+
+exprP :: Parser T.Expression
+exprP =     try(lambdaExp)
+        <|> try(callExp)
+        <|> try(opExp) 
+        <|> try(opbExp) 
+        <|> try(unOpExp) 
+        <|> try(valExp) 
+        <|> try(varExp)
+
+-------------------------------------------------
+--             STATEMENTS
+-------------------------------------------------
+
+-- type Metadata = Int -- Only store line number in statement metadata
+
+-- data Statement
+--   = Expr Expression 
+--   | Nop  
+--   | AssignDef Variable Expression 
+--   | Assign Variable Expression 
+--   | Return Expression 
+--   | Sequence [Statement]
+--   | IfElse Expression Statement Statement 
+--   | While Expression Statement 
+--   | Breakpoint Statement 
+--   deriving (Eq, Show)
+
+
+-------------------------------------------------------------------------------
+-- | Parsing Statements 
+-------------------------------------------------------------------------------
+
+-- Next, use the expression parsers to build a statement parser
+
+-- TODO: wrapper function for linenumber
+
+exprStatement :: Parser T.Statement               
+exprStatement = do 
+                  pos <- getPosition
+                  let line = sourceLine pos
+                  spaces
+                  exp <- exprP
+                  return (T.Expr exp line)
+
+assignDefStatement :: Parser T.Statement                --first time variable declaration
+assignDefStatement = do 
+                  pos <- getPosition
+                  let line = sourceLine pos
+                  spaces
+                  string "var"
+                  spaces
+                  var <- varP
+                  spaces
+                  string "="
+                  spaces
+                  exp <- exprP
+                  return (T.AssignDef var exp line)
+
+assignStatement :: Parser T.Statement
+assignStatement = do 
+                  pos <- getPosition
+                  let line = sourceLine pos
+                  spaces
+                  var <- varP
+                  spaces
+                  string "="
+                  spaces
+                  exp <- exprP
+                  return (T.Assign var exp line)
+
+ifStatement :: Parser T.Statement
+ifStatement = do
+               pos <- getPosition
+               let line = sourceLine pos
+               spaces
+               string "if"
+               spaces
+               exp <- exprP
+               spaces
+               string "then"
+               ifs <- statementP
+               spaces
+               string "else"
+               els <- statementP
+               spaces
+               string "endif"
+               return (T.IfElse exp ifs els line)
+
+whileStatement :: Parser T.Statement
+whileStatement = do
+                     pos <- getPosition
+                     let line = sourceLine pos
+                     spaces
+                     string "while"
+                     spaces
+                     exp <- exprP
+                     spaces
+                     string "do"
+                     spaces
+                     s <- statementP
+                     spaces
+                     string "endwhile"
+                     return (T.While exp s line)  
+
+sequenceStatement :: Parser T.Statement
+sequenceStatement = do 
+                     spaces
+                     s1 <- try(assignDefStatement) <|> try(assignStatement) <|> try(ifStatement) <|> try(whileStatement) <|>  try(nopStatement) <|> try(returnStatement) <|> try(breakpointStatement) <|> try(exprStatement)
+                     string ";"
+                     s2 <- statementP
+                     return (T.Sequence [s1,s2])
+
+nopStatement :: Parser T.Statement
+nopStatement = do 
+                  pos <- getPosition
+                  let line = sourceLine pos
+                  spaces
+                  string "skip"
+                  return (T.Nop line)
+
+breakpointStatement :: Parser T.Statement
+breakpointStatement = do
+                        pos <- getPosition
+                        let line = sourceLine pos
+                        spaces
+                        string "break"
+                        s <- statementP 
+                        return (T.Breakpoint s line)
+
+returnStatement :: Parser T.Statement
+returnStatement = do
+                        pos <- getPosition
+                        let line = sourceLine pos
+                        spaces
+                        string "return"
+                        e <- exprP 
+                        return (T.Return e line)
+
+statementP :: Parser T.Statement
+statementP = try(sequenceStatement)  
+             <|> try(assignDefStatement)
+             <|> try(assignStatement) 
+             <|> try(ifStatement) 
+             <|> try(whileStatement)      
+             <|> try(nopStatement) 
+             <|> try(breakpointStatement)
+             <|> try(returnStatement)
+             <|> try(exprStatement)
+
