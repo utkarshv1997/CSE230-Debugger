@@ -2,18 +2,44 @@ module Epsilon.Types where
 
 import Data.Map
 
+data Frame = MkFrame
+  {
+    name :: Variable
+  , variables :: Map Variable Value
+  , environment :: FramePtr
+  }
+  deriving (Eq, Show)
+
+type FramePtr = Int
+
+data EState = MkEState
+  { stack :: [FramePtr]
+  , memory :: Map FramePtr Frame
+  }
+  deriving (Eq, Show)
+
 -------------------------------------------------
 --             PRIMITIVE VALUES
 -------------------------------------------------
 
+data Type
+  = TInt
+  | TBool
+  | TChar
+  | TString
+  | TList
+  | TMap
+  | TClosure
+
 data Value
-  = IntVal Int
+  = VoidVal
+  | IntVal Int
   | BoolVal Bool
   | CharVal Char
   | StringVal String
   | ListVal [Value]
   | MapVal (Map String Value)
-  | Closure [String] Statement -- TODO: Closure may need a field to capture their lexical environment
+  | Closure FramePtr [Variable] Statement -- TODO: Closure may need a field to capture their lexical environment
   deriving (Eq, Show)
 
 -------------------------------------------------
@@ -57,6 +83,7 @@ data Expression
   | Val Value
   | BinOpExpr BinOp Expression Expression
   | UnOpExpr UnOp Expression
+  | Lambda [Variable] Statement 
   | Call Expression [Expression]
   deriving (Eq, Show)
 
@@ -64,10 +91,16 @@ data Expression
 --             STATEMENTS
 -------------------------------------------------
 
+type Metadata = Int -- Only store line number in statement metadata
+
 data Statement
-  = Expr Expression
-  | Nop
+  = Expr Expression Metadata
+  | Nop Metadata
+  | AssignDef Variable Expression Metadata
+  | Assign Variable Expression Metadata
+  | Return Expression Metadata
   | Sequence [Statement]
-  | IfElse Expression Statement Statement
-  | While Expression Statement
+  | IfElse Expression Statement Statement Metadata
+  | While Expression Statement Metadata
+  | Breakpoint Statement Metadata
   deriving (Eq, Show)
