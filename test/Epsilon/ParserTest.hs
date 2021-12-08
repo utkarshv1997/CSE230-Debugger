@@ -10,6 +10,14 @@ import Test.Tasty.QuickCheck
 import Text.Parsec
 import Text.Parsec.String
 
+-- >>> :set -package tasty
+--
+
+-- >>> :set -package tasty-hunit
+--
+
+-- >>> :set -package tasty-quickcheck
+--
 
 assertParser :: (Eq a, Show a) => String -> Parser a -> a -> Assertion
 assertParser input parser expected = assertEqual "" (Right expected) result
