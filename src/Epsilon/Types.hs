@@ -1,4 +1,4 @@
-mmodule Epsilon.Types where
+module Epsilon.Types where
 
 import Data.Map
 
