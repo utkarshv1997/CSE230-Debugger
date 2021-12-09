@@ -11,4 +11,9 @@ tests = testGroup "Tests"
   , testBoolValP
   , testCharValP
   , testStringValP
+  , testVarP
+  , testunOpP
+  , testbinOpP
+  , testopExpP
+  , testBasicStatementP
   ]

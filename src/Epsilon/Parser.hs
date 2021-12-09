@@ -127,17 +127,17 @@ unOpP = constP "!" T.Not
 -------------------------------------------------
 
 binOpP :: Parser T.BinOp
-binOpP = try(constP "+" T.Add)                  
+binOpP = try(constP "+" T.Add)
        <|> try(constP "-" T.Sub)
-       <|> try(constP "*" T.Mul)                        
-       <|> try(constP "/" T.Div)                           
-       <|> try(constP ">" T.Gt)                            
+       <|> try(constP "*" T.Mul)
+       <|> try(constP "/" T.Div)
        <|> try(constP ">=" T.Gte)
-       <|> try(constP "<" T.Lt)
+       <|> try(constP ">" T.Gt)
        <|> try(constP "<=" T.Lte)
+       <|> try(constP "<" T.Lt)
        <|> try(constP "||" T.Or)
        <|> try(constP "&&" T.And)
-       <|> try(constP "." T.Idx)
+       <|> (constP "." T.Idx)
 
 
 -------------------------------------------------
@@ -168,7 +168,7 @@ valExp = do
 -- TODO: BODMAS ordering instead of right associative evaluation
 opExp :: Parser T.Expression
 opExp = do
-          x <-  try(opbExp) <|> try(valExp) <|> try(varExp)
+          x <-  try(opbExp) <|> try(valExp) <|> try(varExp) <|> unOpExp
           spaces
           op <- binOpP
           spaces
@@ -209,8 +209,10 @@ argItems :: Parser [T.Expression]
 argItems = exprP `sepBy` itemSep
 
 callExp :: Parser T.Expression
-callExp = do 
-            exp <- exprP                    --can be a variable to which lamba exp is assigned or directly a lambda expression
+callExp = do
+            string "apply"
+            spaces
+            exp <- exprP                    --can be a variable to which lambda exp is assigned or directly a lambda expression
             args <- (between (char '(') (char ')') argItems)
             return (T.Call exp args)
 
@@ -221,7 +223,7 @@ exprP =     try(lambdaExp)
         <|> try(opbExp) 
         <|> try(unOpExp) 
         <|> try(valExp) 
-        <|> try(varExp)
+        <|> (varExp)
 
 -------------------------------------------------
 --             STATEMENTS
@@ -252,17 +254,17 @@ exprP =     try(lambdaExp)
 
 exprStatement :: Parser T.Statement               
 exprStatement = do 
+                  spaces
                   pos <- getPosition
                   let line = sourceLine pos
-                  spaces
                   exp <- exprP
                   return (T.Expr exp line)
 
 assignDefStatement :: Parser T.Statement                --first time variable declaration
 assignDefStatement = do 
+                  spaces
                   pos <- getPosition
                   let line = sourceLine pos
-                  spaces
                   string "var"
                   spaces
                   var <- varP
@@ -274,9 +276,9 @@ assignDefStatement = do
 
 assignStatement :: Parser T.Statement
 assignStatement = do 
+                  spaces
                   pos <- getPosition
                   let line = sourceLine pos
-                  spaces
                   var <- varP
                   spaces
                   string "="
@@ -286,9 +288,9 @@ assignStatement = do
 
 ifStatement :: Parser T.Statement
 ifStatement = do
+               spaces
                pos <- getPosition
                let line = sourceLine pos
-               spaces
                string "if"
                spaces
                exp <- exprP
@@ -304,9 +306,9 @@ ifStatement = do
 
 whileStatement :: Parser T.Statement
 whileStatement = do
+                     spaces
                      pos <- getPosition
                      let line = sourceLine pos
-                     spaces
                      string "while"
                      spaces
                      exp <- exprP
@@ -321,34 +323,35 @@ whileStatement = do
 sequenceStatement :: Parser T.Statement
 sequenceStatement = do 
                      spaces
-                     s1 <- try(assignDefStatement) <|> try(assignStatement) <|> try(ifStatement) <|> try(whileStatement) <|>  try(nopStatement) <|> try(returnStatement) <|> try(breakpointStatement) <|> try(exprStatement)
+                     s1 <- try(assignDefStatement) <|> try(assignStatement) <|> try(ifStatement) <|> try(whileStatement) <|>  try(nopStatement) <|> try(returnStatement) <|> try(breakpointStatement) <|> (exprStatement)
                      string ";"
                      s2 <- statementP
                      return (T.Sequence [s1,s2])
 
 nopStatement :: Parser T.Statement
 nopStatement = do 
+                  spaces
                   pos <- getPosition
                   let line = sourceLine pos
-                  spaces
                   string "skip"
                   return (T.Nop line)
 
 breakpointStatement :: Parser T.Statement
 breakpointStatement = do
+                        spaces
                         pos <- getPosition
                         let line = sourceLine pos
-                        spaces
                         string "break"
                         s <- statementP 
                         return (T.Breakpoint s line)
 
 returnStatement :: Parser T.Statement
 returnStatement = do
+                        spaces
                         pos <- getPosition
                         let line = sourceLine pos
-                        spaces
                         string "return"
+                        spaces
                         e <- exprP 
                         return (T.Return e line)
 
@@ -361,4 +364,23 @@ statementP = try(sequenceStatement)
              <|> try(nopStatement) 
              <|> try(breakpointStatement)
              <|> try(returnStatement)
-             <|> try(exprStatement)
+             <|> (exprStatement)
+
+
+
+testParser :: Parser (Int, Int)
+testParser = do
+  pos1 <- getPosition
+  let line1 = sourceLine pos1
+  spaces
+  pos2 <- getPosition
+  let line2 = sourceLine pos2
+  return (line1, line2)
+
+spaces1 = "    "
+spaces2 = "  \n  "
+
+
+-- >>> parseTest statementP "var x = 3;\n return 2"
+-- Sequence [AssignDef "x" (Val (IntVal 3)) 1,Return (Val (IntVal 2)) 2]
+--
