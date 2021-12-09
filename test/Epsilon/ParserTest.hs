@@ -3,12 +3,16 @@ module Epsilon.ParserTest where
 import Epsilon.Types
 import Epsilon.Parser
 import Epsilon.Evaluator
+import Data.Map
 
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Text.Parsec
 import Text.Parsec.String
+
+-- >>> :set -package map
+--
 
 -- >>> :set -package tasty
 --
@@ -57,23 +61,22 @@ testStringValP = testGroup "stringValP"
 
 testListValP :: TestTree
 testListValP = testGroup "testListValP"
-  [ testCase "integer list" $ assertParser "[1,2,3,4]" listValP (ListVal [(InVal 1), (IntVal 2), (IntVal 3)])
+  [ testCase "integer list" $ assertParser "[1,2,3,4]" listValP (ListVal [(IntVal 1), (IntVal 2), (IntVal 3), (IntVal 4)])
   , testCase "string list" $ assertParser "[\"hello\", \"world\"]" listValP (ListVal [(StringVal "hello"), (StringVal "world")])
-  , testCase "empty list" $ assertParser "[]" listValP ()
+  , testCase "empty list" $ assertParser "[]" listValP (ListVal [])
   ]
 
 
 -- verify as types.hs has different format?
 testmapValP :: TestTree
-mapValP = testGroup "testmapValP"
-  [ testCase "integer values map" $ assertParser "{\"orange\":1, \"apple\":2, \"banana\":3}" mapValP (MapVal[("orange", (IntVal 1)), ("apple", (IntVal 2)), ("banana", (IntVal 3)))]
-  , testCase "string values map" $ assertParser "{\"a\":'a', \"b\":'b', \"c\":'c'}" mapValP (MapVal [("a", (charVal 'a')), ("b", (charVal 'b')), ("c", (charVal 'c'))])
-  , testCase "empty map" $ assertParser "{}" mapValP ()
+testmapValP = testGroup "testmapValP"
+  [ testCase "integer values map" $ assertParser "{\"orange\":1, \"apple\":2, \"banana\":3}" mapValP (MapVal (fromList [("orange", (IntVal 1)), ("apple", (IntVal 2)), ("banana", (IntVal 3))]))
+  , testCase "string values map" $ assertParser "{\"a\":'a', \"b\":'b', \"c\":'c'}" mapValP (MapVal (fromList [("a", (CharVal 'a')), ("b", (CharVal 'b')), ("c", (CharVal 'c'))]))
+  , testCase "empty map" $ assertParser "{}" mapValP (MapVal empty)
   ]
 
 testVarP :: TestTree
-testVarP = testGroup "testVarP"\
-
+testVarP = testGroup "testVarP"
   [ testCase "simple variable with 1 character" $ assertParser "a" varP ("a")
   , testCase "simple string with multiple characters" $ assertParser "myvar" varP ("myvar")
   ]
@@ -107,20 +110,19 @@ testopExpP = testGroup "testopExpP"
   , testCase "binary expression add number and variable" $ assertParser "x + 3" opExp (BinOpExpr Add (Var ("x")) (Val (IntVal 3)))
   , testCase "binary expression greater than" $ assertParser "x > 10" opExp (BinOpExpr Gt (Var "x") (Val (IntVal 10)))
   , testCase "binary expression and operator" $assertParser "true && false" opExp (BinOpExpr And (Val (BoolVal True)) (Val (BoolVal False)))
-  , testCase "unary operator and binary operator" $assertParser "!true || false" opExp(BinOpExpr (UnOpExpr (Val (BoolVal True))) (Val (BoolVal False)))
-  , testCase "map/list indexing" $assertParser "myList.\"orange\"" opExp (BinOpExpr (Var "myList")(Val (StringVal "orange")))
+  , testCase "unary operator and binary operator" $assertParser "(!true) || false" opExp (BinOpExpr Or (UnOpExpr Not (Val (BoolVal True))) (Val (BoolVal False)))
+  , testCase "map/list indexing" $assertParser "myList.\"orange\"" opExp (BinOpExpr Idx (Var "myList")(Val (StringVal "orange")))
   ]
 
 testExprP :: TestTree
-testExprP = testGroup "testExpP"
+testExprP = testGroup "testExprP"
   [
     testCase "algebraic exp no brackets" $ assertParser "1+20/3-1" exprP (BinOpExpr Add (Val (IntVal 1)) (BinOpExpr Div (Val (IntVal 20)) (BinOpExpr Sub (Val (IntVal 3)) (Val(IntVal 1)))))
   , testCase "algebraic exp brackets" $ assertParser "(((1+20)/3)-1)" exprP (BinOpExpr Sub (BinOpExpr Div (BinOpExpr Add (Val (IntVal 1)) (Val (IntVal 20))) (Val (IntVal 3))) (Val (IntVal 1)) )
-  , testCase "lambda defn 1" $ assertParser "fn square(a) {return a * a}" exprP (Lambda ["a"] (Return (opExp Mul (Var ("a")) (Var ("a")) 1)))
-  , testCase "lambda defn 2" $ assertParser "fn sumofsquares(a,b) {return (apply square(a) + apply square(b))}" exprP (Lambda ["a", "b"] (Return (BinOpExpr (Add (Call (Var "square") (Var ("a"))) (Call (Var "square") (Var ("b")))) ) ) )
-  , testCase "lambda call 1 variable" $ assertParser "apply square (5)" exprP (Call (Var "square") (Val (IntVal 5)))
-  -- what about line numbers when function defn is an argument?
-  , testCase "lambda call 2 defn" $ assertParser "apply fn square(a) {return a * a} (\"x\")" exprP (Call (Lambda ["a"] (Return (opExp Mul (Var ("a")) (Var ("a")) 1))) (Var ("x")))
+  , testCase "lambda defn 1" $ assertParser "fn (a) {return a * a}" exprP (Lambda ["a"] (Return (BinOpExpr Mul (Var ("a")) (Var ("a"))) 1))
+  , testCase "lambda defn 2" $ assertParser "fn (a,b) {return (apply square(a) + apply square(b))}" exprP (Lambda ["a", "b"] (Return (BinOpExpr Add (Call (Var "square") [(Var ("a"))]) (Call (Var "square") [(Var ("b"))])) 1) )
+  , testCase "lambda call 1 variable" $ assertParser "apply square (5)" exprP (Call (Var "square") [(Val (IntVal 5))])
+  , testCase "lambda call 2 defn" $ assertParser "apply fn (a) {return a * a} (x)" exprP (Call (Lambda ["a"] (Return (BinOpExpr Mul (Var ("a")) (Var ("a")) ) 1)) [(Var ("x"))])
   ]
 
 basicAssignmentStatement = "var x = 3"
@@ -140,7 +142,7 @@ nestedIteStatementExample = "var x = 3;\n\
 \  then return 1\n\
 \else if x < 5\n\
 \       then return 2\n\   
-\       return true\n\
+\       else return false\n\
 \       endif\n\
 \endif"
 whileStatementExample = "var x = 4;\n\
@@ -151,10 +153,10 @@ nestedWhileStatementExample = "var x = 4;\n\
 \while x > 0\n\
 \do x = x - 1\n\
 \endwhile"
-functionDefnAndCallExample = "var s = fn square(a) {\n\
-\  return a * a}\n\
+functionDefnAndCallExample = "var s = fn (a) {\n\
+\  return a * a};\n\
 \var y = apply s(5)"
-functionCallWithDefnExample = "var s = apply fn square(a) {return a * a} (5)"
+functionCallWithDefnExample = "var s = apply fn (a) {return a * a} (5)"
 
 testBasicStatementP :: TestTree
 testBasicStatementP = testGroup "testBasicStatementP"
@@ -169,7 +171,7 @@ testBasicStatementP = testGroup "testBasicStatementP"
       (AssignDef "x" (Val (IntVal 3)) 1),
       (IfElse (BinOpExpr Gt (Var "x") (Val (IntVal 2)))
               (Return (Val (IntVal 1)) 3)
-              (Return (Val (BoolVal False))
+              (Return (Val (BoolVal False)) 4)
        2)
     ])
   ,  testCase "if then else sequence" $ assertParser iteNopStatementExample statementP (Sequence [
@@ -192,37 +194,43 @@ testBasicStatementP = testGroup "testBasicStatementP"
   ,  testCase "while sequence" $ assertParser whileStatementExample statementP (Sequence [
       (AssignDef "x" (Val (IntVal 4)) 1),
       (While (BinOpExpr Gt (Var "x") (Val (IntVal 0)))
-             (Assign "x" (BinOpExpr Add (Var ("x")) (Val (IntVal 1))) 3)
+             (Assign "x" (BinOpExpr Sub (Var ("x")) (Val (IntVal 1))) 3)
        2)
     ])
   ,  testCase "Function Defn and Call sequence" $ assertParser functionDefnAndCallExample statementP (Sequence [
-      (AssignDef "s" (Lambda ["a"] (Return (opExp Mul (Var ("a")) (Var ("a"))) 2)) 1),
-      (AssignDef "y" (Call (Var "s") (Val (IntVal 5))) 3)  --2 or 3? not sure about line number in this case
+      (AssignDef "s" (Lambda ["a"] (Return (BinOpExpr Mul (Var ("a")) (Var ("a"))) 2)) 1),
+      (AssignDef "y" (Call (Var "s") [(Val (IntVal 5))]) 3)  --2 or 3? not sure about line number in this case
     ])
-  ,  testCase "Function Call with Defn sequence" $ assertParser functionCallWithDefnExample statementP (Sequence [
+  ,  testCase "Function Call with Defn" $ assertParser functionCallWithDefnExample statementP (
       (AssignDef "s" (Call 
-                        (Lambda ["a"] (Return (opExp Mul (Var ("a")) (Var ("a"))) 1)) 
-                        (Val (IntVal 5))
-                        1)
-    ])
+                        (Lambda ["a"] (Return (BinOpExpr Mul (Var ("a")) (Var ("a"))) 1)) 
+                        [(Val (IntVal 5))]
+                        ) 1)
+    )
   ]
 
 
 --parse a file?
 --for example:
--- var f = fn fib(n){       --1
---   var first = 0 
---   var second = 1
---   while ((n - 2) >= 0)
---   do 
---     third = first + second
---     first = second
---     second = third
---     n = n - 1
---   endwhile
---   return third
--- }
--- var ans = f(5)     --13
+--
+fibTestString = "var f = fn (n){   \n\
+\ var first = 0; \n\
+\   var second = 1;\n\
+\   while ((n - 2) >= 0)\n\
+\   do \n\
+\     third = first + second;\n\
+\     first = second;\n\
+\     second = third;\n\
+\     n = n - 1\n\
+\   endwhile;\n\
+\   return third\n\
+\ };\n\
+\ var ans = apply f(5)"
+-- >>> parseTest statementP fibTestString
+-- Sequence [AssignDef "f" (Lambda ["n"] (Sequence [AssignDef "first" (Val (IntVal 0)) 2,AssignDef "second" (Val (IntVal 1)) 3,While (BinOpExpr Gte (BinOpExpr Sub (Var "n") (Val (IntVal 2))) (Val (IntVal 0))) (Sequence [Assign "third" (BinOpExpr Add (Var "first") (Var "second")) 6,Assign "first" (Var "second") 7,Assign "second" (Var "third") 8,Assign "n" (BinOpExpr Sub (Var "n") (Val (IntVal 1))) 9]) 4,Return (Var "third") 11])) 1,AssignDef "ans" (Call (Var "f") [Val (IntVal 5)]) 13]
+--
+
+-- var ans = apply f(5)     
 
 -- (Sequence [
 --     (AssignDef "f" (Lambda ["n"] (Sequence[

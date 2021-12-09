@@ -50,5 +50,6 @@ Test-Suite test-epsilon-delta
                        tasty,
                        tasty-hunit,
                        tasty-quickcheck,
-                       cse230-debugger
+                       cse230-debugger,
+                       containers
   other-modules:       Epsilon.ParserTest

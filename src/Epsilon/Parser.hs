@@ -23,7 +23,7 @@ valueP =  intValP
       <|> stringValP
       <|> listValP
       <|> mapValP
---    <|> closureP TODO: After statementP is available
+--    <|> closureP -- creating closures is the evaluator's job
 
 -- TODO: negative integer literals
 intValP :: Parser T.Value
@@ -168,7 +168,7 @@ valExp = do
 -- TODO: BODMAS ordering instead of right associative evaluation
 opExp :: Parser T.Expression
 opExp = do
-          x <-  try(opbExp) <|> try(valExp) <|> try(varExp) <|> unOpExp
+          x <-  try(opbExp) <|> try(callExp) <|> try(valExp) <|> try(varExp) <|> unOpExp
           spaces
           op <- binOpP
           spaces
@@ -178,7 +178,7 @@ opExp = do
 opbExp :: Parser T.Expression
 opbExp = do
           string "("
-          exp <- opExp
+          exp <- try(opExp) <|> unOpExp
           string ")"
           return (exp)
 
@@ -197,6 +197,7 @@ lambdaExp = do
               string "fn"
               spaces 
               pars <- (between (char '(') (char ')') parItems)
+              spaces
               string "{"
               spaces
               body <- statementP
@@ -204,6 +205,19 @@ lambdaExp = do
               string "}"
               spaces
               return (T.Lambda pars body)
+
+-- >>> parseTest statementP "return (apply square(a) + apply square(b))"
+-- Return (BinOpExpr Add (Call (Var "square") [Var "a"]) (Call (Var "square") [Var "b"])) 1
+--
+-- >>> parseTest exprP "(apply square(a) + apply square(b))"
+-- BinOpExpr Add (Call (Var "square") [Var "a"]) (Call (Var "square") [Var "b"])
+--
+-- >>> parseTest callExp "apply square(a)"
+-- Call (Var "square") [Var "a"]
+--
+-- >>> parseTest opExp "apply square(a) + 1"
+-- BinOpExpr Add (Call (Var "square") [Var "a"]) (Val (IntVal 1))
+--
 
 argItems :: Parser [T.Expression]
 argItems = exprP `sepBy` itemSep
@@ -213,6 +227,7 @@ callExp = do
             string "apply"
             spaces
             exp <- exprP                    --can be a variable to which lambda exp is assigned or directly a lambda expression
+            spaces
             args <- (between (char '(') (char ')') argItems)
             return (T.Call exp args)
 
@@ -320,13 +335,30 @@ whileStatement = do
                      string "endwhile"
                      return (T.While exp s line)  
 
+nonSequenceStatement :: Parser T.Statement
+nonSequenceStatement = try(assignDefStatement)
+                   <|> try(assignStatement) 
+                   <|> try(ifStatement) 
+                   <|> try(whileStatement) 
+                   <|> try(nopStatement) 
+                   <|> try(breakpointStatement) 
+                   <|> try(returnStatement) 
+                   <|> (exprStatement)
+
+sequenceSep :: Parser ()
+sequenceSep = do
+  char ';'
+  spaces
+  return ()
+
 sequenceStatement :: Parser T.Statement
 sequenceStatement = do 
                      spaces
-                     s1 <- try(assignDefStatement) <|> try(assignStatement) <|> try(ifStatement) <|> try(whileStatement) <|>  try(nopStatement) <|> try(returnStatement) <|> try(breakpointStatement) <|> (exprStatement)
+                     s1 <- nonSequenceStatement
                      string ";"
-                     s2 <- statementP
-                     return (T.Sequence [s1,s2])
+                     spaces
+                     stmts <- nonSequenceStatement `sepBy` sequenceSep
+                     return (T.Sequence (s1:stmts))
 
 nopStatement :: Parser T.Statement
 nopStatement = do 
@@ -381,6 +413,9 @@ spaces1 = "    "
 spaces2 = "  \n  "
 
 
--- >>> parseTest statementP "var x = 3;\n return 2"
--- Sequence [AssignDef "x" (Val (IntVal 3)) 1,Return (Val (IntVal 2)) 2]
+-- >>> parseTest opExp "(!true) || false"
+-- BinOpExpr Or (UnOpExpr Not (Val (BoolVal True))) (Val (BoolVal False))
+--
+-- >>> parseFromFile statementP "test/fib_test.imp"
+-- Right (Sequence [AssignDef "f" (Lambda ["n"] (Sequence [AssignDef "first" (Val (IntVal 0)) 2,AssignDef "second" (Val (IntVal 1)) 3,While (BinOpExpr Gte (BinOpExpr Sub (Var "n") (Val (IntVal 2))) (Val (IntVal 0))) (Sequence [Assign "third" (BinOpExpr Add (Var "first") (Var "second")) 6,Assign "first" (Var "second") 7,Assign "second" (Var "third") 8,Assign "n" (BinOpExpr Sub (Var "n") (Val (IntVal 1))) 9]) 4,Return (Var "third") 11])) 1,AssignDef "ans" (Call (Var "f") [Val (IntVal 5)]) 13])
 --

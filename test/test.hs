@@ -16,5 +16,6 @@ tests = testGroup "Tests"
   , testunOpP
   , testbinOpP
   , testopExpP
+  , testExprP
   , testBasicStatementP
   ]
