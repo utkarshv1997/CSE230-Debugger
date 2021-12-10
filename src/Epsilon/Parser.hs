@@ -412,7 +412,10 @@ testParser = do
 spaces1 = "    "
 spaces2 = "  \n  "
 
-
+parseStringToStatement :: String -> T.Statement
+parseStringToStatement s = case (parse statementP "" s) of
+  Left _ -> (T.Nop (-1))
+  Right statement -> statement
 -- >>> parseTest opExp "(!true) || false"
 -- BinOpExpr Or (UnOpExpr Not (Val (BoolVal True))) (Val (BoolVal False))
 --
