@@ -46,10 +46,12 @@ Test-Suite test-epsilon-delta
   hs-source-dirs:      test
 
   build-depends:       base,
+                       containers,
                        parsec,
                        tasty,
                        tasty-hunit,
                        tasty-quickcheck,
                        cse230-debugger,
                        containers
-  other-modules:       Epsilon.ParserTest
+  other-modules:       Epsilon.ParserTest,
+                       Epsilon.EvaluatorTest

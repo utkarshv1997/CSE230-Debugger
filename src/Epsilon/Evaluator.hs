@@ -15,6 +15,7 @@ data EError = ReferenceError Variable
             | FrameReferenceError
             | TypeError
             | UnexpectedError
+            | IndexError
   deriving (Eq, Show)
 
 data WhatHappened = Step
@@ -30,14 +31,41 @@ data DState = MkDState
   }
   deriving (Eq, Show)
 
+type MonadEpsilon m = (MonadState EState m, MonadError EError m)
+type MonadEpsilonC m = Coroutine (Yield DState) m
+
 mkDState :: (MonadState EState m) => Statement -> WhatHappened -> m DState
 mkDState s w = do
   state <- get
   let m = metadata s
   return $ MkDState w m state
 
-type MonadEpsilon m = (MonadState EState m, MonadError EError m)
-type MonadEpsilonC m = Coroutine (Yield DState) m
+getBacktrace :: DState -> [Variable]
+getBacktrace dstate = getBacktrace' (stack estate) (memory estate)
+  where estate = Epsilon.Evaluator.state dstate
+
+getBacktrace' :: [FramePtr] -> M.Map FramePtr Frame  -> [Variable]
+getBacktrace' [] _ = []
+getBacktrace' (f:fs) memory =  (name frame) : getBacktrace' fs memory
+  where
+    frame = case M.lookup f memory of
+      Nothing -> error "shouldn't happen"
+      Just frame -> frame
+
+getVariables :: DState -> M.Map Variable Value
+getVariables dstate = M.unions $ getVariables' tos (memory estate)
+  where
+    estate = Epsilon.Evaluator.state dstate
+    tos    = head $ stack estate
+
+getVariables' :: FramePtr -> M.Map FramePtr Frame -> [M.Map Variable Value]
+getVariables' (-1) _ = []
+getVariables' f memory = (variables frame) : getVariables' (environment frame) memory
+  where
+    frame = case M.lookup f memory of
+      Nothing -> error "shouldn't happen"
+      Just frame -> frame
+
 
 firstFramePtr :: (MonadError EError m) => [FramePtr] -> m FramePtr
 firstFramePtr [] = throwError FrameReferenceError
@@ -48,6 +76,10 @@ nextFramePtr = do
   (MkEState _ memory) <- get
   return $ ((maximum (M.keys memory))  + 1)
 
+getFrame :: (MonadEpsilon m) => FramePtr -> M.Map FramePtr Frame -> m Frame
+getFrame ptr mem = case M.lookup ptr mem of
+  Just frame -> return frame
+  Nothing -> throwError UnexpectedError
 
 readVar :: (MonadEpsilon m) => Variable -> m Value
 readVar x = do
@@ -56,12 +88,12 @@ readVar x = do
   readStack x ptr memory
 
 readStack :: (MonadEpsilon m) => Variable -> FramePtr -> M.Map FramePtr Frame -> m Value
+readStack x (-1) _ = throwError $ ReferenceError x
 readStack x ptr mem = do
   frame <- getFrame ptr mem
   case M.lookup x (variables frame) of
     Just v -> return v
     Nothing -> readStack x (environment frame) mem
-
 
 writeVar :: (MonadEpsilon m) => Variable -> Value -> m ()
 writeVar x v = do
@@ -70,12 +102,8 @@ writeVar x v = do
   memory' <- writeStack x v ptr memory
   put $ state{ memory = memory' }
 
-getFrame :: (MonadEpsilon m) => FramePtr -> M.Map FramePtr Frame -> m Frame
-getFrame ptr mem = case M.lookup ptr mem of
-  Just frame -> return frame
-  Nothing -> throwError UnexpectedError
-
 writeStack :: (MonadEpsilon m) => Variable -> Value -> FramePtr -> M.Map FramePtr Frame -> m (M.Map FramePtr Frame) 
+writeStack x _ (-1) _ = throwError $ ReferenceError x
 writeStack x v ptr mem = do
   frame@(MkFrame _ _ env) <- getFrame ptr mem
   case M.lookup x (variables frame) of
@@ -148,7 +176,12 @@ evalBinOp Lte (IntVal i1) (IntVal i2) = return $ BoolVal (i1 <= i2)
 evalBinOp Gte (IntVal i1) (IntVal i2) = return $ BoolVal (i1 >= i2)
 evalBinOp Lt (IntVal i1) (IntVal i2) = return $ BoolVal (i1 < i2)
 evalBinOp Gt (IntVal i1) (IntVal i2) = return $ BoolVal (i1 > i2)
-evalBinOp Idx (ListVal l) (IntVal i) = return $ l !! i
+evalBinOp Idx (ListVal l) (IntVal i) = if length l > i 
+  then return $ l !! i
+  else throwError IndexError
+evalBinOp Idx (MapVal m) (StringVal k) = case M.lookup k m of
+  Just v -> return v
+  Nothing -> throwError IndexError
 evalBinOp Or (BoolVal b1) (BoolVal b2) = return $ BoolVal (b1 || b2)
 evalBinOp And (BoolVal b1) (BoolVal b2) = return $ BoolVal (b1 && b2)
 evalBinOp _ _ _ = throwError TypeError

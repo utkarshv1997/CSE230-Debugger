@@ -2,6 +2,7 @@ import Test.Tasty
 
 import Epsilon.Parser
 import Epsilon.ParserTest
+import Epsilon.EvaluatorTest
 
 main = defaultMain tests
 
@@ -11,6 +12,7 @@ tests = testGroup "Tests"
   , testBoolValP
   , testCharValP
   , testStringValP
+<<<<<<< HEAD
   , testListValP
   , testVarP
   , testunOpP
@@ -18,4 +20,7 @@ tests = testGroup "Tests"
   , testopExpP
   , testExprP
   , testBasicStatementP
+=======
+  , testEvalAssignDef
+>>>>>>> main
   ]
