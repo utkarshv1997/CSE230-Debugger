@@ -106,14 +106,14 @@ data Statement
   deriving (Eq, Show)
 
 mapStatement :: (Statement -> Statement) -> Statement -> Statement
-mapStatement f (Sequence stmts) = let applyStmts = (Prelude.map f stmts) in
+mapStatement f (Sequence stmts) = let applyStmts = (Prelude.map (mapStatement f) stmts) in
   f(Sequence applyStmts)
-mapStatement f (IfElse e stmt1 stmt2 m) = let applyStmt1 = (f stmt1)
-                                              applyStmt2 = (f stmt2) in
+mapStatement f (IfElse e stmt1 stmt2 m) = let applyStmt1 = ((mapStatement f) stmt1)
+                                              applyStmt2 = ((mapStatement f) stmt2) in
                                                 f (IfElse e applyStmt1 applyStmt2 m)
-mapStatement f (While e stmt m) = let applyStmt = (f stmt) in 
+mapStatement f (While e stmt m) = let applyStmt = ((mapStatement f) stmt) in 
                                         f (While e applyStmt m)
-mapStatement f (Breakpoint stmt m) = let applyStmt = (f stmt) in 
+mapStatement f (Breakpoint stmt m) = let applyStmt = ((mapStatement f) stmt) in 
                                           f (Breakpoint applyStmt m)
 mapStatement f s = f s
 
