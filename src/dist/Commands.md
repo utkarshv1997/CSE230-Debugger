@@ -14,5 +14,9 @@ Navigating through the Delta Debugger :
 Using the Delta Debugger :
 - Use the `b` key to place a breakpoint on the currently selected line.
 - Use the `b` key to delete the breakpoint on the currently selected line, if one is already present.
-- Use the `r` key to run your program.
+- Use the `r` key to run your program. (This should be done before using the `s` key)
 - Use the `n` key to continue to the next breakpoint in your program.
+- Use the `s` key to use the step-over functionality and execute the next statement in your code.
+- Once your program gets over, you'll be notified through a message in the stack/variables view
+- Once your program gets over, if in case of an error, you'll see the error that was thrown by the evaluator and 
+  the corresponding stack and variables on which it failed
