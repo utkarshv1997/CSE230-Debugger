@@ -42,8 +42,19 @@ The result of our project will be an interpreter for Epsilon which allows the us
 
 ## <span style="color:blue"> Possible Extensions </span>
 * Triggers on a variable's value change.
-* This may be further extended to be a time-travelling debugger, essentially somehow going “X” number of steps back into the execution of the program.
+\* This may be further extended to be a time-travelling debugger, essentially somehow going “X” number of steps back into the execution of the program.
 * Extending the language to add more features derived from other modern languages.
+
+## <span style="color:blue"> Running the Delta Debugger </span>
+- Clone the repository to your local machine 
+- Create and save your program 
+- Go to command line prompt and run the below command
+    run <path to program> src/dist/Commands.md
+<br>
+
+## <span style="color:blue"> Link to Final Presentation </span>
+[Link](https://docs.google.com/presentation/d/1GaS5k0vl4lbLw_hIbnbtbiWLZuSJG-iMQUWn43BOwI8/edit?usp=sharing)
+<br>
 
 ## <span style="color:blue"> Team </span>
 > Daniel Kleber,
