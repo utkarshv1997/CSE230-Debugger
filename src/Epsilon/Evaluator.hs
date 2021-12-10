@@ -30,6 +30,27 @@ data DState = MkDState
   }
   deriving (Eq, Show)
 
+-- getNameFromPtr :: (Map FramePtr Frame) -> FramePtr -> Variable
+-- getNameFromPtr memory ptr = 
+--   let frame = findWithDefault (MkFrame {name = "Error", variables = M.empty, environment = -1}) ptr memory in 
+--     name frame
+
+getNameFromPtr :: (Map FramePtr Frame) -> FramePtr -> Variable
+getNameFromPtr memory ptr = 
+  case lookup ptr memory of 
+    Nothing    -> "Error"
+    Just frame -> name frame
+
+getStateFrames :: DState -> [String]
+getStackFrames dstate = let estate = (state dstate) in 
+                        let pointerList = (stack estate)
+                            dict = (memory  estate) in
+                        [Name]
+
+
+
+
+
 mkDState :: (MonadState EState m) => Statement -> WhatHappened -> m DState
 mkDState s w = do
   state <- get
