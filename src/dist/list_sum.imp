@@ -1,0 +1,12 @@
+var list = [1,2,3,4,5];
+var listSum = fn(list, length, index) {
+    if index >= length then
+        return 0
+    else
+        var val = list.index;
+        var sumRest = apply listSum (list, length, (index+1));
+        return (val + sumRest)
+    endif
+};
+var x = apply listSum (list, 5, 0);
+skip

@@ -1,0 +1,14 @@
+var isEven = fn(n) {
+    if ((n >= 0) && (n <= 0))
+    then return true
+    else return (!apply isEven (n-1))
+    endif
+};
+var isZeroEven = apply isEven (0);
+var isFiveEven = apply isEven (5);
+var isEvenSix = apply fn(n) {
+    var half = n/2;
+    var double = 2*half;
+    return ((double >= n) && (double <= n))
+} (6);
+skip
