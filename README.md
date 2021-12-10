@@ -47,10 +47,9 @@ The result of our project will be an interpreter for Epsilon which allows the us
 
 ## <span style="color:blue"> Running the Delta Debugger </span>
 - Clone the repository to your local machine  
-    > https://github.com/utkarshv1997/CSE230-Debugger.git
 - Create and save your program 
 - Go to command line prompt and run the below command:  
-    > run <path to your program> src/dist/Commands.md
+    > run path_to_your_program src/dist/Commands.md
 <br>
 
 ## <span style="color:blue"> Link to Final Presentation </span>
