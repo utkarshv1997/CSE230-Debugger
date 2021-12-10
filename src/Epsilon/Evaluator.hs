@@ -45,7 +45,7 @@ getStateFrames :: DState -> [String]
 getStackFrames dstate = let estate = (state dstate) in 
                         let pointerList = (stack estate)
                             dict = (memory  estate) in
-                                fmap (getNameFromPtr memory) pointerList
+                                fmap (getNameFromPtr dict) pointerList
 
 
 
