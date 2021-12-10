@@ -11,6 +11,8 @@ import           Control.Monad.Except
 import           Control.Monad.State
 import           Control.Monad.Identity
 import Data.Map
+import qualified Data.Set as S
+
 
 data EError = ReferenceError Variable
             | FrameReferenceError
@@ -58,6 +60,26 @@ getVariables dstate = M.unions $ getVariables' tos (memory estate)
   where
     estate = Epsilon.Evaluator.state dstate
     tos    = head $ stack estate
+  
+getVariablesEstate :: EState -> M.Map Variable Value
+getVariablesEstate estate = M.unions $ getVariables' tos (memory estate)
+  where
+    tos = head$stack estate
+
+getNameFromPtr :: (Map FramePtr Frame) -> FramePtr -> Variable
+getNameFromPtr memory ptr =
+  case Data.Map.lookup ptr memory of
+    Nothing    -> "Error"
+    Just frame -> name frame
+
+getStackFrames :: DState -> [String]
+getStackFrames dstate = let estate = (Epsilon.Evaluator.state dstate) in
+                        let pointerList = (stack estate)
+                            dict = (memory estate) in fmap (getNameFromPtr dict) pointerList
+
+getStackFramesEstate:: EState -> [String]
+getStackFramesEstate estate = let {pointerList = (stack estate); dict = (memory estate)} in 
+                              fmap (getNameFromPtr dict) pointerList
 
 getNameFromPtr :: (Map FramePtr Frame) -> FramePtr -> Variable
 getNameFromPtr memory ptr =
@@ -250,8 +272,25 @@ metadata (IfElse _ _ _ m) = m
 metadata (While _ _ m) = m
 metadata (Breakpoint _ m) = m
 
+addBreakpoint :: S.Set Int -> Statement -> Statement
+addBreakpoint _ s@(Sequence _) = s
+addBreakpoint set s = let m = metadata s in
+  case S.member m set of
+    True  -> Breakpoint s m
+    False -> s
+
+addBreakpoints :: S.Set Int -> Statement -> Statement
+addBreakpoints s stmt = mapStatement (addBreakpoint s) stmt
+-- >>> addBreakpoints (S.fromList [1, 3, 5]) testStatement
+-- Sequence [Breakpoint (IfElse (Var "x") (Breakpoint (Nop 1) 1) (Nop 2) 3) 3,Breakpoint (While (Val (BoolVal False)) (Nop 4) 5) 5,Breakpoint (Nop 6) 7]
+--
+-- >>> mapStatement (addBreakpoint (S.fromList [1, 3, 5])) testStatement
+-- Sequence [Breakpoint (IfElse (Var "x") (Breakpoint (Nop 1) 1) (Nop 2) 3) 3,Breakpoint (While (Val (BoolVal False)) (Nop 4) 5) 5,Breakpoint (Nop 6) 7]
+--
+
 evalS :: (MonadEpsilon m) => Statement -> MonadEpsilonC m Value
 evalS (Expr e _) = evalE e
+evalS (Return e _) = evalE e -- does not exit function for now
 evalS (Nop _) = return VoidVal
 evalS (AssignDef x e _) = do
   v <- evalE e
