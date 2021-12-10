@@ -47,9 +47,10 @@ The result of our project will be an interpreter for Epsilon which allows the us
 
 ## <span style="color:blue"> Running the Delta Debugger </span>
 - Clone the repository to your local machine  
+- If not present, install stack [link](https://docs.haskellstack.org/en/stable/README/)
 - Create and save your program 
 - Go to command line prompt and run the below command:  
-    > run path_to_your_program src/dist/Commands.md
+    > stack run path_to_your_program src/dist/Commands.md
 <br>
 
 ## <span style="color:blue"> Link to Final Presentation </span>
