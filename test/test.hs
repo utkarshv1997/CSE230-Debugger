@@ -20,4 +20,6 @@ tests = testGroup "Tests"
   , testExprP
   , testBasicStatementP
   , testEvalAssignDef
+  , testEvalNestedLoops
+  , testEvalClosures
   ]
