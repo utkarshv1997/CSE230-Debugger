@@ -10,6 +10,9 @@ import           Control.Monad.Coroutine.SuspensionFunctors
 import           Control.Monad.Except
 import           Control.Monad.State
 import           Control.Monad.Identity
+import Data.Map
+import qualified Data.Set as S
+
 
 data EError = ReferenceError Variable
             | FrameReferenceError
@@ -236,6 +239,22 @@ metadata (Sequence _) = error "never"
 metadata (IfElse _ _ _ m) = m
 metadata (While _ _ m) = m
 metadata (Breakpoint _ m) = m
+
+addBreakpoint :: S.Set Int -> Statement -> Statement
+addBreakpoint _ s@(Sequence _) = s
+addBreakpoint set s = let m = metadata s in
+  case S.member m set of
+    True  -> Breakpoint s m
+    False -> s
+
+addBreakpoints :: S.Set Int -> Statement -> Statement
+addBreakpoints s stmt = mapStatement (addBreakpoint s) stmt
+-- >>> addBreakpoints (S.fromList [1, 3, 5]) testStatement
+-- Sequence [Breakpoint (IfElse (Var "x") (Breakpoint (Nop 1) 1) (Nop 2) 3) 3,Breakpoint (While (Val (BoolVal False)) (Nop 4) 5) 5,Breakpoint (Nop 6) 7]
+--
+-- >>> mapStatement (addBreakpoint (S.fromList [1, 3, 5])) testStatement
+-- Sequence [Breakpoint (IfElse (Var "x") (Breakpoint (Nop 1) 1) (Nop 2) 3) 3,Breakpoint (While (Val (BoolVal False)) (Nop 4) 5) 5,Breakpoint (Nop 6) 7]
+--
 
 evalS :: (MonadEpsilon m) => Statement -> MonadEpsilonC m Value
 evalS (Expr e _) = evalE e
