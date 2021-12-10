@@ -81,17 +81,6 @@ getStackFramesEstate:: EState -> [String]
 getStackFramesEstate estate = let {pointerList = (stack estate); dict = (memory estate)} in 
                               fmap (getNameFromPtr dict) pointerList
 
-getNameFromPtr :: (Map FramePtr Frame) -> FramePtr -> Variable
-getNameFromPtr memory ptr =
-  case Data.Map.lookup ptr memory of
-    Nothing    -> "Error"
-    Just frame -> name frame
-
-getStackFrames :: DState -> [String]
-getStackFrames dstate = let estate = (Epsilon.Evaluator.state dstate) in
-                        let pointerList = (stack estate)
-                            dict = (memory estate) in fmap (getNameFromPtr dict) pointerList
-
 getVariables' :: FramePtr -> M.Map FramePtr Frame -> [M.Map Variable Value]
 getVariables' (-1) _ = []
 getVariables' f memory = (variables frame) : getVariables' (environment frame) memory

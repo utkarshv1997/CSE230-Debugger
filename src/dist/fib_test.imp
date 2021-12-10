@@ -1,6 +1,7 @@
 var f = fn (n){       
 var first = 0; 
 var second = 1;
+var third = 0;
 while ((n - 2) >= 0)
 do 
   third = first + second;
@@ -9,6 +10,6 @@ do
   n = n - 1
 endwhile;
 break skip;
-return third
+third
 };
 var ans = apply f(5)    

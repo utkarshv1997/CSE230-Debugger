@@ -38,6 +38,7 @@ import Data.Map (Map, empty, foldrWithKey, singleton)
 import Epsilon.Evaluator
 import Epsilon.Types
 import Epsilon.Parser
+import GHC.Exts (breakpoint)
 
 data Name =     CodeView
             |   StackView
@@ -53,8 +54,9 @@ data ProgState = ProgState {
     commandsViewContent :: String, -- This is what goes inside the "Help" View
     evalState :: DState, -- The state of the evaluator
     evaluator :: Epsilon Value, -- The evaluator monad
-    isRunning :: Bool,
-    code :: String
+    isRunning :: Bool, -- Checks if the program is in the running phase
+    code :: String, -- Somehow we wounded up using code and codeLined both :P, ideally we could have done with one but that's okay!
+    outputState :: Int -- Represents the current output state of the program
 }
 
 Lens.Micro.TH.makeLenses ''ProgState
@@ -89,37 +91,61 @@ buildViewUI ps stackViewWidget varViewWidget comViewWidget viewType =
                          ]
 
 manageStackView :: ProgState -> Widget n
-manageStackView ps = if isRunning ps then 
+manageStackView ps = if outputState ps == 0 then 
+                        if isRunning ps then 
                             -- str $ unlines $ getStackContents ps
+                            -- str $ show (addBreakpoints (fromList [2, 3, 5]) (parseAndBuildAST ps))
+                            str $ show $ addBreakpoints (fromList [1, 3, 5]) testStatement
                             -- str $ show $ parseAndBuildAST ps
-                            str $ show $ evalState ps
-                         else 
+                            -- str $ show $ evalState ps
+                        else 
                             str "Stack content of the program during interpretation will be displayed here."
+                     else if outputState ps == 2 then
+                         str "Execution seems to have completed, press ESC to exit!"
+                     else
+                         str $ unlines $ getStackContents ps
+
 
 manageVariablesView :: ProgState -> Widget n
-manageVariablesView ps = if isRunning ps then 
+manageVariablesView ps = if outputState ps == 0 then 
+                            if isRunning ps then 
                             -- str $ show $ parseAndBuildAST ps
-                            str (foldrWithKey (\k v s -> show k ++ " : " ++ show v ++ "\n" ++ s) "" (getVariables (evalState ps)))
-                         else 
-                            str "Defined variables (along with their values) during the program interpretation will be displayed here."
+                                str (foldrWithKey (\k v s -> show k ++ " : " ++ show v ++ "\n" ++ s) "" (getVariables (evalState ps)))
+                            else 
+                                str "Defined variables (along with their values) during the program interpretation will be displayed here."
+                         else if outputState ps == 2 then
+                             str "Execution seems to have completed, press ESC to exit!"
+                         else
+                             str (foldrWithKey (\k v s -> show k ++ " : " ++ show v ++ "\n" ++ s) "" (getVariables (evalState ps)))
 
 getStackContents :: ProgState -> [String]
 getStackContents ps = getStackFrames $ evalState ps
 
 assembleCodeViewWidgets :: ProgState -> Bool -> [Widget n]
 assembleCodeViewWidgets ps isCodeView = map (\ (codeline, line) ->
-                            if member line (breakpoints ps) then
+                            if outputState ps == 2 then
+                                withAttr codePanelScheme $ str $ show line ++ (if line < 10 then ".  " else ". ") ++ codeline
+                            else if outputState ps == 1 then
                                 if line == Epsilon.Evaluator.loc (evalState ps) then
-                                    withAttr executionLineScheme $ str $ show line ++ (if line < 10 then ".  " else ". ") ++ codeline
-                                else
-                                    withAttr breakpointScheme $ str $ show line ++ (if line < 10 then ".  " else ". ") ++ codeline
-                            else
-                                if isRunning ps && line == Epsilon.Evaluator.loc (evalState ps) then
-                                    withAttr executionLineScheme $ str $ show line ++ (if line < 10 then ".  " else ". ") ++ codeline
-                                else if line == selectedElement ps && isCodeView then
-                                    withAttr codePanelSelectedScheme $ str $ show line ++ (if line < 10 then ".  " else ". ") ++ codeline
-                                else
+                                    withAttr erroredOutScheme $ str $ show line ++ (if line < 10 then ".  " else ". ") ++ codeline
+                                else 
                                     withAttr codePanelScheme $ str $ show line ++ (if line < 10 then ".  " else ". ") ++ codeline
+                            else    
+                                if member line (breakpoints ps) then
+                                    if line == Epsilon.Evaluator.loc (evalState ps) then
+                                        withAttr executionLineScheme $ str $ show line ++ (if line < 10 then ".  " else ". ") ++ codeline
+                                    else
+                                        withAttr breakpointScheme $ str $ show line ++ (if line < 10 then ".  " else ". ") ++ codeline
+                                else
+                                    if isRunning ps && line == Epsilon.Evaluator.loc (evalState ps) then
+                                        withAttr executionLineScheme $ str $ show line ++ (if line < 10 then ".  " else ". ") ++ codeline
+                                    else if line == selectedElement ps && isCodeView then
+                                        if isRunning ps then 
+                                            withAttr codePanelScheme $ str $ show line ++ (if line < 10 then ".  " else ". ") ++ codeline
+                                        else     
+                                            withAttr codePanelSelectedScheme $ str $ show line ++ (if line < 10 then ".  " else ". ") ++ codeline
+                                    else
+                                        withAttr codePanelScheme $ str $ show line ++ (if line < 10 then ".  " else ". ") ++ codeline
                          )
                      (codeLines ps)
 
@@ -199,20 +225,25 @@ appEvent ps (T.VtyEvent ev) = case ev of
 appEvent ps _ = M.continue ps
 
 startEvaluation :: ProgState -> ProgState
-startEvaluation ps = case snd $ startEpsilon (parseAndBuildAST ps) of
+startEvaluation ps = case s of
                         Left merror -> case merror of
-                                    Just _ ->  ProgState { -- Do something here
+                                    Just _ ->  ProgState { 
                                                 _focusRing = ps^.focusRing,
                                                 codeLines = codeLines ps,
                                                 selectedElement = selectedElement ps,
                                                 breakpoints = breakpoints ps,
                                                 commandsViewContent = commandsViewContent ps,
-                                                evalState = evalState ps,
+                                                evalState = MkDState {
+                                                    what = what (evalState ps),
+                                                    Epsilon.Evaluator.loc = Epsilon.Evaluator.loc (evalState ps),
+                                                    state = f
+                                                },
                                                 evaluator = evaluator ps,
                                                 isRunning = isRunning ps,
-                                                code = code ps
+                                                code = code ps,
+                                                outputState = 1
                                             }
-                                    Nothing ->  ProgState { -- Do something here
+                                    Nothing ->  ProgState {
                                                     _focusRing = ps^.focusRing,
                                                     codeLines = codeLines ps,
                                                     selectedElement = selectedElement ps,
@@ -221,7 +252,8 @@ startEvaluation ps = case snd $ startEpsilon (parseAndBuildAST ps) of
                                                     evalState = evalState ps,
                                                     evaluator = evaluator ps,
                                                     isRunning = isRunning ps,
-                                                    code = code ps
+                                                    code = code ps,
+                                                    outputState = 2
                                                 }
                         Right st -> ProgState {
                                                 _focusRing = ps^.focusRing,
@@ -232,24 +264,31 @@ startEvaluation ps = case snd $ startEpsilon (parseAndBuildAST ps) of
                                                 evalState = fst st,
                                                 evaluator = snd st,
                                                 isRunning = True,
-                                                code = code ps
+                                                code = code ps,
+                                                outputState = 0
                                     }
+                    where (f, s) = startEpsilon (addBreakpoints (breakpoints ps) $ parseAndBuildAST ps)
 
 nextEvaluation :: ProgState -> ProgState
-nextEvaluation ps = case snd $ continueEpsilon (evaluator ps) (state $ evalState ps) of
+nextEvaluation ps = case s of
                         Left merror -> case merror of
-                                    Just _ ->  ProgState { -- Do something here
+                                    Just _ ->  ProgState {
                                                 _focusRing = ps^.focusRing,
                                                 codeLines = codeLines ps,
                                                 selectedElement = selectedElement ps,
                                                 breakpoints = breakpoints ps,
                                                 commandsViewContent = commandsViewContent ps,
-                                                evalState = evalState ps,
+                                                evalState = MkDState {
+                                                    what = what (evalState ps),
+                                                    Epsilon.Evaluator.loc = Epsilon.Evaluator.loc (evalState ps),
+                                                    state = f
+                                                },
                                                 evaluator = evaluator ps,
                                                 isRunning = isRunning ps,
-                                                code = code ps
+                                                code = code ps,
+                                                outputState = 1
                                             }
-                                    Nothing ->  ProgState { -- Do something here
+                                    Nothing ->  ProgState {
                                                     _focusRing = ps^.focusRing,
                                                     codeLines = codeLines ps,
                                                     selectedElement = selectedElement ps,
@@ -258,7 +297,8 @@ nextEvaluation ps = case snd $ continueEpsilon (evaluator ps) (state $ evalState
                                                     evalState = evalState ps,
                                                     evaluator = evaluator ps,
                                                     isRunning = isRunning ps,
-                                                    code = code ps
+                                                    code = code ps,
+                                                    outputState = 2
                                                 }
                         Right st -> ProgState {
                                                 _focusRing = ps^.focusRing,
@@ -269,11 +309,13 @@ nextEvaluation ps = case snd $ continueEpsilon (evaluator ps) (state $ evalState
                                                 evalState = fst st,
                                                 evaluator = snd st,
                                                 isRunning = isRunning ps,
-                                                code = code ps
+                                                code = code ps,
+                                                outputState = 0
                                     }
+                    where (f, s) = continueEpsilon (evaluator ps) (state $ evalState ps)
 
 stepEvaluation :: ProgState -> ProgState
-stepEvaluation ps = case snd $ stepEpsilon (evaluator ps) (state $ evalState ps) of
+stepEvaluation ps = case s of
                         Left merror -> case merror of
                                     Just _ ->  ProgState { -- Do something here
                                                 _focusRing = ps^.focusRing,
@@ -281,10 +323,15 @@ stepEvaluation ps = case snd $ stepEpsilon (evaluator ps) (state $ evalState ps)
                                                 selectedElement = selectedElement ps,
                                                 breakpoints = breakpoints ps,
                                                 commandsViewContent = commandsViewContent ps,
-                                                evalState = evalState ps,
+                                                evalState = MkDState {
+                                                    what = what (evalState ps),
+                                                    Epsilon.Evaluator.loc = Epsilon.Evaluator.loc (evalState ps),
+                                                    state = f
+                                                },
                                                 evaluator = evaluator ps,
                                                 isRunning = isRunning ps,
-                                                code = code ps
+                                                code = code ps,
+                                                outputState = 1
                                             }
                                     Nothing ->  ProgState { -- Do something here
                                                     _focusRing = ps^.focusRing,
@@ -295,7 +342,8 @@ stepEvaluation ps = case snd $ stepEpsilon (evaluator ps) (state $ evalState ps)
                                                     evalState = evalState ps,
                                                     evaluator = evaluator ps,
                                                     isRunning = isRunning ps,
-                                                    code = code ps
+                                                    code = code ps,
+                                                    outputState = 2
                                                 }
                         Right st -> ProgState {
                                                 _focusRing = ps^.focusRing,
@@ -306,8 +354,10 @@ stepEvaluation ps = case snd $ stepEpsilon (evaluator ps) (state $ evalState ps)
                                                 evalState = fst st,
                                                 evaluator = snd st,
                                                 isRunning = isRunning ps,
-                                                code = code ps
+                                                code = code ps,
+                                                outputState = 0
                                     }
+                    where (f, s) = stepEpsilon (evaluator ps) (state $ evalState ps)
 
 parseAndBuildAST :: ProgState -> Statement
 parseAndBuildAST ps = parseStringToStatement (code ps)
@@ -322,7 +372,8 @@ updateBreakPointSet ps = ProgState {
                                     evalState = evalState ps,
                                     evaluator = evaluator ps,
                                     isRunning = isRunning ps,
-                                    code = code ps
+                                    code = code ps,
+                                    outputState = 0
                                 }
                                 where updatedBPSet = if member (selectedElement ps) (breakpoints ps) then
                                                         delete (selectedElement ps) (breakpoints ps)
@@ -339,7 +390,8 @@ updateSelectedElement ps c = ProgState {
                                     evalState = evalState ps,
                                     evaluator = evaluator ps,
                                     isRunning = isRunning ps,
-                                    code = code ps
+                                    code = code ps,
+                                    outputState = 0
                                 }
                                 where maxLine = snd $ last (codeLines ps)
 
@@ -354,7 +406,7 @@ app =
           }
 
 codePanelScheme, headerLabelScheme, codePanelBg, codePanelSelectedScheme, miscPanelScheme :: AttrName
-miscPanelSelectedScheme, breakpointScheme, executionLineScheme :: AttrName
+miscPanelSelectedScheme, breakpointScheme, executionLineScheme, erroredOutScheme :: AttrName
 codePanelScheme = attrName "code-panel-scheme"
 codePanelBg = attrName "code-panel-bg"
 codePanelSelectedScheme = attrName "code-panel-selected-scheme"
@@ -363,6 +415,7 @@ miscPanelSelectedScheme = attrName "misc-panel-selected-scheme"
 breakpointScheme = attrName "breakpoint-scheme"
 headerLabelScheme = attrName "header-label-scheme"
 executionLineScheme = attrName "execution-line-scheme"
+erroredOutScheme = attrName "errored-out-scheme"
 
 attributes :: AttrMap
 attributes = attrMap defAttr [
@@ -373,7 +426,8 @@ attributes = attrMap defAttr [
                 (miscPanelScheme, yellow `on` black),
                 (breakpointScheme, white `on` red),
                 (executionLineScheme, white `on` black),
-                (headerLabelScheme, withStyle (withStyle (blue `on` white) bold) underline)
+                (headerLabelScheme, withStyle (withStyle (blue `on` white) bold) underline),
+                (erroredOutScheme, black `on` white)
              ]
 
 constructCodeStructure :: [String] -> Int -> [(String, Int)]
@@ -408,7 +462,8 @@ initState code codeLines commands = ProgState {
                                     evalState = dummyInitState,
                                     evaluator = dummyEvaluator,
                                     isRunning = False,
-                                    code = code
+                                    code = code,
+                                    outputState = 0
                                 }
 
 ui :: IO ()

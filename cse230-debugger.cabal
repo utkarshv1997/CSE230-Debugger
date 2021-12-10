@@ -25,6 +25,9 @@ executable debugger
                      , microlens
                      , microlens-th
                      , monad-coroutine
+                     , tasty
+                     , tasty-hunit
+                     , tasty-quickcheck
 
 Library
   ghc-options:        -W
