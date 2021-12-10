@@ -269,12 +269,25 @@ addBreakpoint set s = let m = metadata s in
 
 addBreakpoints :: S.Set Int -> Statement -> Statement
 addBreakpoints s stmt = mapStatement (addBreakpoint s) stmt
--- >>> addBreakpoints (S.fromList [1, 3, 5]) testStatement
--- Sequence [Breakpoint (IfElse (Var "x") (Breakpoint (Nop 1) 1) (Nop 2) 3) 3,Breakpoint (While (Val (BoolVal False)) (Nop 4) 5) 5,Breakpoint (Nop 6) 7]
+
+
+{-fibTestStmt = Sequence [AssignDef "f" (Lambda ["n"] 
+                        (Sequence [AssignDef "first" (Val (IntVal 0)) 2,
+                                   AssignDef "second" (Val (IntVal 1)) 3,
+                                   While (BinOpExpr Gte (BinOpExpr Sub (Var "n") (Val (IntVal 2))) (Val (IntVal 0))) 
+                                         (Sequence [Assign "third" (BinOpExpr Add (Var "first") (Var "second")) 6,
+                                                    Assign "first" (Var "second") 7,
+                                                    Assign "second" (Var "third") 8,
+                                                    Assign "n" (BinOpExpr Sub (Var "n") (Val (IntVal 1))) 9]) 4,
+                                                    Return (Var "third") 11])) 1,
+                        AssignDef "ans" (Call (Var "f") [Val (IntVal 5)]) 13]-}
+-- >>> addBreakpoints (S.fromList [1, 3, 5]) fibTestStmt
+-- Sequence [Breakpoint (AssignDef "f" (Lambda ["n"] (Sequence [AssignDef "first" (Val (IntVal 0)) 2,Breakpoint (AssignDef "second" (Val (IntVal 1)) 3) 3,While (BinOpExpr Gte (BinOpExpr Sub (Var "n") (Val (IntVal 2))) (Val (IntVal 0))) (Sequence [Assign "third" (BinOpExpr Add (Var "first") (Var "second")) 6,Assign "first" (Var "second") 7,Assign "second" (Var "third") 8,Assign "n" (BinOpExpr Sub (Var "n") (Val (IntVal 1))) 9]) 4,Return (Var "third") 11])) 1) 1,AssignDef "ans" (Call (Var "f") [Val (IntVal 5)]) 13]
 --
--- >>> mapStatement (addBreakpoint (S.fromList [1, 3, 5])) testStatement
--- Sequence [Breakpoint (IfElse (Var "x") (Breakpoint (Nop 1) 1) (Nop 2) 3) 3,Breakpoint (While (Val (BoolVal False)) (Nop 4) 5) 5,Breakpoint (Nop 6) 7]
+-- >>> mapStatement testFunction fibTestStmt
+-- Breakpoint (Sequence [Breakpoint (AssignDef "f" (Lambda ["n"] (Sequence [AssignDef "first" (Val (IntVal 0)) 2,AssignDef "second" (Val (IntVal 1)) 3,While (BinOpExpr Gte (BinOpExpr Sub (Var "n") (Val (IntVal 2))) (Val (IntVal 0))) (Sequence [Assign "third" (BinOpExpr Add (Var "first") (Var "second")) 6,Assign "first" (Var "second") 7,Assign "second" (Var "third") 8,Assign "n" (BinOpExpr Sub (Var "n") (Val (IntVal 1))) 9]) 4,Return (Var "third") 11])) 1) (-500),Breakpoint (AssignDef "ans" (Call (Var "f") [Val (IntVal 5)]) 13) (-500)]) (-500)
 --
+
 
 evalS :: (MonadEpsilon m) => Statement -> MonadEpsilonC m Value
 evalS (Expr e _) = evalE e

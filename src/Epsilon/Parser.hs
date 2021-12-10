@@ -419,6 +419,27 @@ parseStringToStatement s = case (parse statementP "" s) of
 -- >>> parseTest opExp "(!true) || false"
 -- BinOpExpr Or (UnOpExpr Not (Val (BoolVal True))) (Val (BoolVal False))
 --
--- >>> parseFromFile statementP "test/closures_test.imp"
--- Right (Sequence [AssignDef "addNum" (Lambda ["n"] (Return (Lambda ["m"] (Return (BinOpExpr Add (Var "m") (Var "n")) 3)) 2)) 1,Expr (Var "apply") 6])
+-- >>> parseFromFile statementP "test/fib_test.imp"
+-- (Error while loading modules for evaluation)
+-- [4 of 4] Compiling Main             ( /home/cse230/CSE230-Debugger/test/test.hs, interpreted )
+-- <BLANKLINE>
+-- /home/cse230/CSE230-Debugger/test/test.hs:1:1-17: error:
+--     Could not load module ‘Test.Tasty’
+--     It is a member of the hidden package ‘tasty-1.4.2’.
+--     You can run ‘:set -package tasty’ to expose it.
+--     (Note: this unloads all the modules in the current scope.)
+--     Use -v (or `:set -v` in ghci) to see a list of the files searched for.
+-- <BLANKLINE>
+-- /home/cse230/CSE230-Debugger/test/test.hs:4:1-25: error:
+--     Could not find module ‘Epsilon.ParserTest’
+--     Perhaps you meant
+--       Epsilon.Parser (needs flag -package-key cse230-debugger-0.1.0.0)
+--     Use -v (or `:set -v` in ghci) to see a list of the files searched for.
+-- <BLANKLINE>
+-- /home/cse230/CSE230-Debugger/test/test.hs:5:1-28: error:
+--     Could not find module ‘Epsilon.EvaluatorTest’
+--     Perhaps you meant
+--       Epsilon.Evaluator (needs flag -package-key cse230-debugger-0.1.0.0)
+--     Use -v (or `:set -v` in ghci) to see a list of the files searched for.
+-- Failed, three modules loaded.
 --
