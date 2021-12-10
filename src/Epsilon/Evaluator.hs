@@ -60,6 +60,26 @@ getVariables dstate = M.unions $ getVariables' tos (memory estate)
   where
     estate = Epsilon.Evaluator.state dstate
     tos    = head $ stack estate
+  
+getVariablesEstate :: EState -> M.Map Variable Value
+getVariablesEstate estate = M.unions $ getVariables' tos (memory estate)
+  where
+    tos = head$stack estate
+
+getNameFromPtr :: (Map FramePtr Frame) -> FramePtr -> Variable
+getNameFromPtr memory ptr =
+  case Data.Map.lookup ptr memory of
+    Nothing    -> "Error"
+    Just frame -> name frame
+
+getStackFrames :: DState -> [String]
+getStackFrames dstate = let estate = (Epsilon.Evaluator.state dstate) in
+                        let pointerList = (stack estate)
+                            dict = (memory estate) in fmap (getNameFromPtr dict) pointerList
+
+getStackFramesEstate:: EState -> [String]
+getStackFramesEstate estate = let {pointerList = (stack estate); dict = (memory estate)} in 
+                              fmap (getNameFromPtr dict) pointerList
 
 getVariables' :: FramePtr -> M.Map FramePtr Frame -> [M.Map Variable Value]
 getVariables' (-1) _ = []
@@ -258,6 +278,7 @@ addBreakpoints s stmt = mapStatement (addBreakpoint s) stmt
 
 evalS :: (MonadEpsilon m) => Statement -> MonadEpsilonC m Value
 evalS (Expr e _) = evalE e
+evalS (Return e _) = evalE e -- does not exit function for now
 evalS (Nop _) = return VoidVal
 evalS (AssignDef x e _) = do
   v <- evalE e
