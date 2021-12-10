@@ -1,0 +1,15 @@
+var f = fn (n){       
+var first = 0; 
+var second = 1;
+var third = 0;
+while ((n - 2) >= 0)
+do 
+  third = first + second;
+  first = second;
+  second = third;
+  n = n - 1
+endwhile;
+break skip;
+third
+};
+var ans = apply f(5)    

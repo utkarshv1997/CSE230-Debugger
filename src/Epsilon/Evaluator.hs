@@ -255,7 +255,8 @@ metadata (Nop m) = m
 metadata (AssignDef _ _ m) = m
 metadata (Assign _ _ m) = m
 metadata (Return _ m) = m
-metadata (Sequence _) = error "never"
+metadata (Sequence []) = error "never"
+metadata (Sequence (s:_)) = metadata s
 metadata (IfElse _ _ _ m) = m
 metadata (While _ _ m) = m
 metadata (Breakpoint _ m) = m
@@ -301,7 +302,11 @@ evalS (IfElse e s1 s2 _) = do
 evalS w@(While e s _) = do
   v <- evalE e
   b <- lift $ typeCheckBool v
-  if b then evalS (Sequence [s, w]) else return VoidVal
+  if b then do 
+    evalS s 
+    evalS w
+  else 
+    return VoidVal
 evalS (Breakpoint s _) = do
   dstate <- lift $ mkDState s Break
   yield dstate

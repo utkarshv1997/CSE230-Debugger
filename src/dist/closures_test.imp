@@ -3,4 +3,5 @@ var addNum = fn(n) {
         return (m+n)
     }
 };
-apply apply addNum 2 3
+var x = apply apply addNum (2) (3);
+skip
