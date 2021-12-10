@@ -46,10 +46,11 @@ The result of our project will be an interpreter for Epsilon which allows the us
 * Extending the language to add more features derived from other modern languages.
 
 ## <span style="color:blue"> Running the Delta Debugger </span>
-- Clone the repository to your local machine 
+- Clone the repository to your local machine  
+    > https://github.com/utkarshv1997/CSE230-Debugger.git
 - Create and save your program 
-- Go to command line prompt and run the below command
-    run <path to program> src/dist/Commands.md
+- Go to command line prompt and run the below command:  
+    > run <path to your program> src/dist/Commands.md
 <br>
 
 ## <span style="color:blue"> Link to Final Presentation </span>
