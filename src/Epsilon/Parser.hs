@@ -419,6 +419,6 @@ parseStringToStatement s = case (parse statementP "" s) of
 -- >>> parseTest opExp "(!true) || false"
 -- BinOpExpr Or (UnOpExpr Not (Val (BoolVal True))) (Val (BoolVal False))
 --
--- >>> parseFromFile statementP "test/fib_test.imp"
--- Right (Sequence [AssignDef "f" (Lambda ["n"] (Sequence [AssignDef "first" (Val (IntVal 0)) 2,AssignDef "second" (Val (IntVal 1)) 3,While (BinOpExpr Gte (BinOpExpr Sub (Var "n") (Val (IntVal 2))) (Val (IntVal 0))) (Sequence [Assign "third" (BinOpExpr Add (Var "first") (Var "second")) 6,Assign "first" (Var "second") 7,Assign "second" (Var "third") 8,Assign "n" (BinOpExpr Sub (Var "n") (Val (IntVal 1))) 9]) 4,Return (Var "third") 11])) 1,AssignDef "ans" (Call (Var "f") [Val (IntVal 5)]) 13])
+-- >>> parseFromFile statementP "test/closures_test.imp"
+-- Right (Sequence [AssignDef "addNum" (Lambda ["n"] (Return (Lambda ["m"] (Return (BinOpExpr Add (Var "m") (Var "n")) 3)) 2)) 1,Expr (Var "apply") 6])
 --

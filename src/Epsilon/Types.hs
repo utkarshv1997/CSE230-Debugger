@@ -104,3 +104,24 @@ data Statement
   | While Expression Statement Metadata
   | Breakpoint Statement Metadata
   deriving (Eq, Show)
+
+mapStatement :: (Statement -> Statement) -> Statement -> Statement
+mapStatement f (Sequence stmts) = let applyStmts = (Prelude.map (mapStatement f) stmts) in
+  f(Sequence applyStmts)
+mapStatement f (IfElse e stmt1 stmt2 m) = let applyStmt1 = ((mapStatement f) stmt1)
+                                              applyStmt2 = ((mapStatement f) stmt2) in
+                                                f (IfElse e applyStmt1 applyStmt2 m)
+mapStatement f (While e stmt m) = let applyStmt = ((mapStatement f) stmt) in 
+                                        f (While e applyStmt m)
+mapStatement f (Breakpoint stmt m) = let applyStmt = ((mapStatement f) stmt) in 
+                                          f (Breakpoint applyStmt m)
+mapStatement f s = f s
+
+testFunction :: Statement -> Statement
+testFunction s = Breakpoint s (-500)
+
+testStatement = Sequence [(IfElse (Var "x") (Nop 1) (Nop 2) 3), (While (Val (BoolVal False)) (Nop 4) 5), (Breakpoint (Nop 6) 7)]
+
+-- >>> mapStatement testFunction testStatement
+-- Breakpoint (Sequence [Breakpoint (IfElse (Var "x") (Nop 1) (Nop 2) 3) (-500),Breakpoint (While (Val (BoolVal False)) (Nop 4) 5) (-500),Breakpoint (Breakpoint (Nop 6) 7) (-500)]) (-500)
+--

@@ -1,0 +1,6 @@
+var addNum = fn(n) {
+    return fn(m) {
+        return (m+n)
+    }
+};
+apply apply addNum 2 3
