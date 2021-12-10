@@ -10,6 +10,7 @@ import           Control.Monad.Coroutine.SuspensionFunctors
 import           Control.Monad.Except
 import           Control.Monad.State
 import           Control.Monad.Identity
+import Data.Map
 
 data EError = ReferenceError Variable
             | FrameReferenceError
@@ -57,6 +58,17 @@ getVariables dstate = M.unions $ getVariables' tos (memory estate)
   where
     estate = Epsilon.Evaluator.state dstate
     tos    = head $ stack estate
+
+getNameFromPtr :: (Map FramePtr Frame) -> FramePtr -> Variable
+getNameFromPtr memory ptr =
+  case Data.Map.lookup ptr memory of
+    Nothing    -> "Error"
+    Just frame -> name frame
+
+getStackFrames :: DState -> [String]
+getStackFrames dstate = let estate = (Epsilon.Evaluator.state dstate) in
+                        let pointerList = (stack estate)
+                            dict = (memory estate) in fmap (getNameFromPtr dict) pointerList
 
 getVariables' :: FramePtr -> M.Map FramePtr Frame -> [M.Map Variable Value]
 getVariables' (-1) _ = []
@@ -232,7 +244,8 @@ metadata (Nop m) = m
 metadata (AssignDef _ _ m) = m
 metadata (Assign _ _ m) = m
 metadata (Return _ m) = m
-metadata (Sequence _) = error "never"
+metadata (Sequence []) = error "never"
+metadata (Sequence (s:_)) = metadata s
 metadata (IfElse _ _ _ m) = m
 metadata (While _ _ m) = m
 metadata (Breakpoint _ m) = m
@@ -261,7 +274,11 @@ evalS (IfElse e s1 s2 _) = do
 evalS w@(While e s _) = do
   v <- evalE e
   b <- lift $ typeCheckBool v
-  if b then evalS (Sequence [s, w]) else return VoidVal
+  if b then do 
+    evalS s 
+    evalS w
+  else 
+    return VoidVal
 evalS (Breakpoint s _) = do
   dstate <- lift $ mkDState s Break
   yield dstate

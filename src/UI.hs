@@ -34,9 +34,10 @@ import Graphics.Vty
 import Control.Lens
 import Brick.Widgets.Border.Style
 import System.IO
-import Data.Map (Map, empty)
+import Data.Map (Map, empty, foldrWithKey, singleton)
 import Epsilon.Evaluator
 import Epsilon.Types
+import Epsilon.Parser
 
 data Name =     CodeView
             |   StackView
@@ -51,7 +52,9 @@ data ProgState = ProgState {
     breakpoints :: Set Int, -- contains "breakpointed" line numbers
     commandsViewContent :: String, -- This is what goes inside the "Help" View
     evalState :: DState, -- The state of the evaluator
-    evaluator :: Epsilon Value -- The evaluator monad
+    evaluator :: Epsilon Value, -- The evaluator monad
+    isRunning :: Bool,
+    code :: String
 }
 
 Lens.Micro.TH.makeLenses ''ProgState
@@ -86,10 +89,22 @@ buildViewUI ps stackViewWidget varViewWidget comViewWidget viewType =
                          ]
 
 manageStackView :: ProgState -> Widget n
-manageStackView ps = error ""
+manageStackView ps = if isRunning ps then 
+                            -- str $ unlines $ getStackContents ps
+                            -- str $ show $ parseAndBuildAST ps
+                            str $ show $ evalState ps
+                         else 
+                            str "Stack content of the program during interpretation will be displayed here."
 
 manageVariablesView :: ProgState -> Widget n
-manageVariablesView ps = error ""
+manageVariablesView ps = if isRunning ps then 
+                            -- str $ show $ parseAndBuildAST ps
+                            str (foldrWithKey (\k v s -> show k ++ " : " ++ show v ++ "\n" ++ s) "" (getVariables (evalState ps)))
+                         else 
+                            str "Defined variables (along with their values) during the program interpretation will be displayed here."
+
+getStackContents :: ProgState -> [String]
+getStackContents ps = getStackFrames $ evalState ps
 
 assembleCodeViewWidgets :: ProgState -> Bool -> [Widget n]
 assembleCodeViewWidgets ps isCodeView = map (\ (codeline, line) ->
@@ -99,7 +114,9 @@ assembleCodeViewWidgets ps isCodeView = map (\ (codeline, line) ->
                                 else
                                     withAttr breakpointScheme $ str $ show line ++ (if line < 10 then ".  " else ". ") ++ codeline
                             else
-                                if line == selectedElement ps && isCodeView then
+                                if isRunning ps && line == Epsilon.Evaluator.loc (evalState ps) then
+                                    withAttr executionLineScheme $ str $ show line ++ (if line < 10 then ".  " else ". ") ++ codeline
+                                else if line == selectedElement ps && isCodeView then
                                     withAttr codePanelSelectedScheme $ str $ show line ++ (if line < 10 then ".  " else ". ") ++ codeline
                                 else
                                     withAttr codePanelScheme $ str $ show line ++ (if line < 10 then ".  " else ". ") ++ codeline
@@ -191,7 +208,9 @@ startEvaluation ps = case snd $ startEpsilon (parseAndBuildAST ps) of
                                                 breakpoints = breakpoints ps,
                                                 commandsViewContent = commandsViewContent ps,
                                                 evalState = evalState ps,
-                                                evaluator = evaluator ps
+                                                evaluator = evaluator ps,
+                                                isRunning = isRunning ps,
+                                                code = code ps
                                             }
                                     Nothing ->  ProgState { -- Do something here
                                                     _focusRing = ps^.focusRing,
@@ -200,7 +219,9 @@ startEvaluation ps = case snd $ startEpsilon (parseAndBuildAST ps) of
                                                     breakpoints = breakpoints ps,
                                                     commandsViewContent = commandsViewContent ps,
                                                     evalState = evalState ps,
-                                                    evaluator = evaluator ps
+                                                    evaluator = evaluator ps,
+                                                    isRunning = isRunning ps,
+                                                    code = code ps
                                                 }
                         Right st -> ProgState {
                                                 _focusRing = ps^.focusRing,
@@ -209,7 +230,9 @@ startEvaluation ps = case snd $ startEpsilon (parseAndBuildAST ps) of
                                                 breakpoints = breakpoints ps,
                                                 commandsViewContent = commandsViewContent ps,
                                                 evalState = fst st,
-                                                evaluator = snd st
+                                                evaluator = snd st,
+                                                isRunning = True,
+                                                code = code ps
                                     }
 
 nextEvaluation :: ProgState -> ProgState
@@ -222,7 +245,9 @@ nextEvaluation ps = case snd $ continueEpsilon (evaluator ps) (state $ evalState
                                                 breakpoints = breakpoints ps,
                                                 commandsViewContent = commandsViewContent ps,
                                                 evalState = evalState ps,
-                                                evaluator = evaluator ps
+                                                evaluator = evaluator ps,
+                                                isRunning = isRunning ps,
+                                                code = code ps
                                             }
                                     Nothing ->  ProgState { -- Do something here
                                                     _focusRing = ps^.focusRing,
@@ -231,7 +256,9 @@ nextEvaluation ps = case snd $ continueEpsilon (evaluator ps) (state $ evalState
                                                     breakpoints = breakpoints ps,
                                                     commandsViewContent = commandsViewContent ps,
                                                     evalState = evalState ps,
-                                                    evaluator = evaluator ps
+                                                    evaluator = evaluator ps,
+                                                    isRunning = isRunning ps,
+                                                    code = code ps
                                                 }
                         Right st -> ProgState {
                                                 _focusRing = ps^.focusRing,
@@ -240,7 +267,9 @@ nextEvaluation ps = case snd $ continueEpsilon (evaluator ps) (state $ evalState
                                                 breakpoints = breakpoints ps,
                                                 commandsViewContent = commandsViewContent ps,
                                                 evalState = fst st,
-                                                evaluator = snd st
+                                                evaluator = snd st,
+                                                isRunning = isRunning ps,
+                                                code = code ps
                                     }
 
 stepEvaluation :: ProgState -> ProgState
@@ -253,7 +282,9 @@ stepEvaluation ps = case snd $ stepEpsilon (evaluator ps) (state $ evalState ps)
                                                 breakpoints = breakpoints ps,
                                                 commandsViewContent = commandsViewContent ps,
                                                 evalState = evalState ps,
-                                                evaluator = evaluator ps
+                                                evaluator = evaluator ps,
+                                                isRunning = isRunning ps,
+                                                code = code ps
                                             }
                                     Nothing ->  ProgState { -- Do something here
                                                     _focusRing = ps^.focusRing,
@@ -262,7 +293,9 @@ stepEvaluation ps = case snd $ stepEpsilon (evaluator ps) (state $ evalState ps)
                                                     breakpoints = breakpoints ps,
                                                     commandsViewContent = commandsViewContent ps,
                                                     evalState = evalState ps,
-                                                    evaluator = evaluator ps
+                                                    evaluator = evaluator ps,
+                                                    isRunning = isRunning ps,
+                                                    code = code ps
                                                 }
                         Right st -> ProgState {
                                                 _focusRing = ps^.focusRing,
@@ -271,11 +304,13 @@ stepEvaluation ps = case snd $ stepEpsilon (evaluator ps) (state $ evalState ps)
                                                 breakpoints = breakpoints ps,
                                                 commandsViewContent = commandsViewContent ps,
                                                 evalState = fst st,
-                                                evaluator = snd st
+                                                evaluator = snd st,
+                                                isRunning = isRunning ps,
+                                                code = code ps
                                     }
 
 parseAndBuildAST :: ProgState -> Statement
-parseAndBuildAST ps = prog1
+parseAndBuildAST ps = parseStringToStatement (code ps)
 
 updateBreakPointSet :: ProgState -> ProgState
 updateBreakPointSet ps = ProgState {
@@ -285,7 +320,9 @@ updateBreakPointSet ps = ProgState {
                                     breakpoints = updatedBPSet,
                                     commandsViewContent = commandsViewContent ps,
                                     evalState = evalState ps,
-                                    evaluator = evaluator ps
+                                    evaluator = evaluator ps,
+                                    isRunning = isRunning ps,
+                                    code = code ps
                                 }
                                 where updatedBPSet = if member (selectedElement ps) (breakpoints ps) then
                                                         delete (selectedElement ps) (breakpoints ps)
@@ -300,7 +337,9 @@ updateSelectedElement ps c = ProgState {
                                     breakpoints = breakpoints ps,
                                     commandsViewContent = commandsViewContent ps,
                                     evalState = evalState ps,
-                                    evaluator = evaluator ps
+                                    evaluator = evaluator ps,
+                                    isRunning = isRunning ps,
+                                    code = code ps
                                 }
                                 where maxLine = snd $ last (codeLines ps)
 
@@ -341,13 +380,35 @@ constructCodeStructure :: [String] -> Int -> [(String, Int)]
 constructCodeStructure [] _ = []
 constructCodeStructure (l : ls) c = (l, c) : constructCodeStructure ls (c + 1)
 
-initState :: [String] -> String -> ProgState
-initState codeLines commands = ProgState {
+dummyInitState :: DState
+dummyInitState = MkDState {
+    what = Step,
+    Epsilon.Evaluator.loc = 0,
+    state = MkEState {
+        stack = [ 1 ],
+        memory = Data.Map.singleton 1
+            (MkFrame {
+                name = "main",
+                variables = Data.Map.empty,
+                environment = -1
+            })
+    }
+}
+
+dummyEvaluator :: Epsilon Value
+dummyEvaluator = return VoidVal
+
+initState :: String -> [String] -> String -> ProgState
+initState code codeLines commands = ProgState {
                                     _focusRing = F.focusRing [CodeView, StackView, VariablesView, CommandsView],
                                     codeLines = constructCodeStructure codeLines 1,
                                     selectedElement = 1,
                                     breakpoints = Data.Set.empty,
-                                    commandsViewContent = commands
+                                    commandsViewContent = commands,
+                                    evalState = dummyInitState,
+                                    evaluator = dummyEvaluator,
+                                    isRunning = False,
+                                    code = code
                                 }
 
 ui :: IO ()
@@ -356,8 +417,9 @@ ui = do
         case args of
             [codeFileName, commandsFileName] -> do
                 codeLines <- lines <$> readFile codeFileName
+                code <- readFile codeFileName
                 commandsViewContent <- lines <$> readFile commandsFileName
-                void $ M.defaultMain app $ initState codeLines $ unlines commandsViewContent
+                void $ M.defaultMain app $ initState code codeLines $ unlines commandsViewContent
                 exitSuccess
             _ -> do
                 putStr "Please provide a filename to be opened."

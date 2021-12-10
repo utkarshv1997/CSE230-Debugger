@@ -374,7 +374,7 @@ breakpointStatement = do
                         pos <- getPosition
                         let line = sourceLine pos
                         string "break"
-                        s <- statementP 
+                        s <- nonSequenceStatement 
                         return (T.Breakpoint s line)
 
 returnStatement :: Parser T.Statement
