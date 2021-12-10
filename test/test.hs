@@ -12,5 +12,15 @@ tests = testGroup "Tests"
   , testBoolValP
   , testCharValP
   , testStringValP
+<<<<<<< HEAD
+  , testListValP
+  , testVarP
+  , testunOpP
+  , testbinOpP
+  , testopExpP
+  , testExprP
+  , testBasicStatementP
+=======
   , testEvalAssignDef
+>>>>>>> main
   ]
