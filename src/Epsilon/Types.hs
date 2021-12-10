@@ -109,13 +109,36 @@ mapStatement :: (Statement -> Statement) -> Statement -> Statement
 mapStatement f (Sequence stmts) = let applyStmts = (Prelude.map (mapStatement f) stmts) in
   f(Sequence applyStmts)
 mapStatement f (IfElse e stmt1 stmt2 m) = let applyStmt1 = ((mapStatement f) stmt1)
-                                              applyStmt2 = ((mapStatement f) stmt2) in
-                                                f (IfElse e applyStmt1 applyStmt2 m)
-mapStatement f (While e stmt m) = let applyStmt = ((mapStatement f) stmt) in 
-                                        f (While e applyStmt m)
-mapStatement f (Breakpoint stmt m) = let applyStmt = ((mapStatement f) stmt) in 
+                                              applyStmt2 = ((mapStatement f) stmt2)
+                                              applye     = ((mapStatementIntoExpr f) e) in
+                                                f (IfElse applye applyStmt1 applyStmt2 m)
+mapStatement f (While e stmt m) = let applyStmt = ((mapStatement f) stmt)
+                                      applye    = ((mapStatementIntoExpr f) e) in
+                                        f (While applye applyStmt m)
+mapStatement f (Breakpoint stmt m) = let applyStmt = ((mapStatement f) stmt) in
                                           f (Breakpoint applyStmt m)
-mapStatement f s = f s
+mapStatement f (Expr e m) = let applye = ((mapStatementIntoExpr f) e) in
+                                          f (Expr applye m)
+mapStatement f (Return e m) = let applye = ((mapStatementIntoExpr f) e) in
+                                          f (Return applye m)
+mapStatement f s@(Nop _) = f s
+mapStatement f (AssignDef v e m) = let applye = ((mapStatementIntoExpr f) e) in
+                                              f (AssignDef v applye m)
+mapStatement f (Assign v e m) = let applye = ((mapStatementIntoExpr f) e) in
+                                              f (Assign v applye m)
+
+mapStatementIntoExpr :: (Statement -> Statement) -> Expression -> Expression
+mapStatementIntoExpr f (Lambda vars stmt) = let applyStmt = ((mapStatement f) stmt) in
+                                                (Lambda vars applyStmt)
+mapStatementIntoExpr f (BinOpExpr b e1 e2) = let applye1 = ((mapStatementIntoExpr f) e1)
+                                                 applye2 = ((mapStatementIntoExpr f) e2) in
+                                                (BinOpExpr b applye1 applye2)
+mapStatementIntoExpr f (UnOpExpr b e) = let applye = ((mapStatementIntoExpr f) e) in
+                                                (UnOpExpr b applye)
+mapStatementIntoExpr f (Call e es) = let applye = ((mapStatementIntoExpr f) e)
+                                         applyes = (Prelude.map (mapStatementIntoExpr f) es) in
+                                                (Call applye applyes)
+mapStatementIntoExpr _ expr = expr
 
 testFunction :: Statement -> Statement
 testFunction s = Breakpoint s (-500)

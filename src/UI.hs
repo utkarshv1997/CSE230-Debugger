@@ -56,7 +56,8 @@ data ProgState = ProgState {
     evaluator :: Epsilon Value, -- The evaluator monad
     isRunning :: Bool, -- Checks if the program is in the running phase
     code :: String, -- Somehow we wounded up using code and codeLined both :P, ideally we could have done with one but that's okay!
-    outputState :: Int -- Represents the current output state of the program
+    outputState :: Int, -- Represents the current output state of the program
+    errorE :: EError -- Error 
 }
 
 Lens.Micro.TH.makeLenses ''ProgState
@@ -93,9 +94,9 @@ buildViewUI ps stackViewWidget varViewWidget comViewWidget viewType =
 manageStackView :: ProgState -> Widget n
 manageStackView ps = if outputState ps == 0 then 
                         if isRunning ps then 
-                            -- str $ unlines $ getStackContents ps
-                            -- str $ show (addBreakpoints (fromList [2, 3, 5]) (parseAndBuildAST ps))
-                            str $ show $ addBreakpoints (fromList [1, 3, 5]) testStatement
+                            str $ unlines $ getStackContents ps
+                            -- str $ show $ addBreakpoints (breakpoints ps) (parseAndBuildAST ps)
+                            -- str $ show $ addBreakpoints (fromList [1, 3, 5]) testStatement
                             -- str $ show $ parseAndBuildAST ps
                             -- str $ show $ evalState ps
                         else 
@@ -103,8 +104,7 @@ manageStackView ps = if outputState ps == 0 then
                      else if outputState ps == 2 then
                          str "Execution seems to have completed, press ESC to exit!"
                      else
-                         str $ unlines $ getStackContents ps
-
+                         str $ (unlines $ getStackContents ps) ++ "\n" ++ (show $ errorE ps)
 
 manageVariablesView :: ProgState -> Widget n
 manageVariablesView ps = if outputState ps == 0 then 
@@ -241,7 +241,8 @@ startEvaluation ps = case s of
                                                 evaluator = evaluator ps,
                                                 isRunning = isRunning ps,
                                                 code = code ps,
-                                                outputState = 1
+                                                outputState = 1,
+                                                errorE = errorE ps
                                             }
                                     Nothing ->  ProgState {
                                                     _focusRing = ps^.focusRing,
@@ -253,7 +254,8 @@ startEvaluation ps = case s of
                                                     evaluator = evaluator ps,
                                                     isRunning = isRunning ps,
                                                     code = code ps,
-                                                    outputState = 2
+                                                    outputState = 2,
+                                                    errorE = errorE ps
                                                 }
                         Right st -> ProgState {
                                                 _focusRing = ps^.focusRing,
@@ -265,14 +267,15 @@ startEvaluation ps = case s of
                                                 evaluator = snd st,
                                                 isRunning = True,
                                                 code = code ps,
-                                                outputState = 0
+                                                outputState = 0,
+                                                errorE = errorE ps
                                     }
                     where (f, s) = startEpsilon (addBreakpoints (breakpoints ps) $ parseAndBuildAST ps)
 
 nextEvaluation :: ProgState -> ProgState
 nextEvaluation ps = case s of
                         Left merror -> case merror of
-                                    Just _ ->  ProgState {
+                                    Just e ->  ProgState {
                                                 _focusRing = ps^.focusRing,
                                                 codeLines = codeLines ps,
                                                 selectedElement = selectedElement ps,
@@ -286,7 +289,8 @@ nextEvaluation ps = case s of
                                                 evaluator = evaluator ps,
                                                 isRunning = isRunning ps,
                                                 code = code ps,
-                                                outputState = 1
+                                                outputState = 1,
+                                                errorE = e
                                             }
                                     Nothing ->  ProgState {
                                                     _focusRing = ps^.focusRing,
@@ -298,7 +302,8 @@ nextEvaluation ps = case s of
                                                     evaluator = evaluator ps,
                                                     isRunning = isRunning ps,
                                                     code = code ps,
-                                                    outputState = 2
+                                                    outputState = 2,
+                                                    errorE = errorE ps
                                                 }
                         Right st -> ProgState {
                                                 _focusRing = ps^.focusRing,
@@ -310,14 +315,15 @@ nextEvaluation ps = case s of
                                                 evaluator = snd st,
                                                 isRunning = isRunning ps,
                                                 code = code ps,
-                                                outputState = 0
+                                                outputState = 0,
+                                                errorE = errorE ps
                                     }
                     where (f, s) = continueEpsilon (evaluator ps) (state $ evalState ps)
 
 stepEvaluation :: ProgState -> ProgState
 stepEvaluation ps = case s of
                         Left merror -> case merror of
-                                    Just _ ->  ProgState { -- Do something here
+                                    Just e ->  ProgState { -- Do something here
                                                 _focusRing = ps^.focusRing,
                                                 codeLines = codeLines ps,
                                                 selectedElement = selectedElement ps,
@@ -331,7 +337,8 @@ stepEvaluation ps = case s of
                                                 evaluator = evaluator ps,
                                                 isRunning = isRunning ps,
                                                 code = code ps,
-                                                outputState = 1
+                                                outputState = 1,
+                                                errorE = e
                                             }
                                     Nothing ->  ProgState { -- Do something here
                                                     _focusRing = ps^.focusRing,
@@ -343,7 +350,8 @@ stepEvaluation ps = case s of
                                                     evaluator = evaluator ps,
                                                     isRunning = isRunning ps,
                                                     code = code ps,
-                                                    outputState = 2
+                                                    outputState = 2,
+                                                    errorE = errorE ps
                                                 }
                         Right st -> ProgState {
                                                 _focusRing = ps^.focusRing,
@@ -355,7 +363,8 @@ stepEvaluation ps = case s of
                                                 evaluator = snd st,
                                                 isRunning = isRunning ps,
                                                 code = code ps,
-                                                outputState = 0
+                                                outputState = 0,
+                                                errorE = errorE ps
                                     }
                     where (f, s) = stepEpsilon (evaluator ps) (state $ evalState ps)
 
@@ -373,7 +382,8 @@ updateBreakPointSet ps = ProgState {
                                     evaluator = evaluator ps,
                                     isRunning = isRunning ps,
                                     code = code ps,
-                                    outputState = 0
+                                    outputState = 0,
+                                    errorE = errorE ps
                                 }
                                 where updatedBPSet = if member (selectedElement ps) (breakpoints ps) then
                                                         delete (selectedElement ps) (breakpoints ps)
@@ -391,7 +401,8 @@ updateSelectedElement ps c = ProgState {
                                     evaluator = evaluator ps,
                                     isRunning = isRunning ps,
                                     code = code ps,
-                                    outputState = 0
+                                    outputState = 0,
+                                    errorE = errorE ps
                                 }
                                 where maxLine = snd $ last (codeLines ps)
 
@@ -463,7 +474,8 @@ initState code codeLines commands = ProgState {
                                     evaluator = dummyEvaluator,
                                     isRunning = False,
                                     code = code,
-                                    outputState = 0
+                                    outputState = 0,
+                                    errorE = TypeError
                                 }
 
 ui :: IO ()
